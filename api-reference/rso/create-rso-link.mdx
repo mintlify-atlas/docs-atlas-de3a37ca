@@ -1,0 +1,131 @@
+---
+title: "Create RSO Link"
+description: "Create a Riot Sign-On (RSO) authorization link for OAuth2 authentication"
+---
+
+## Method Signature
+
+```python
+client.create_RSO_link(redirect_uri, client_id, response_type, scopes, login_hint=None, ui_locales=None, state=None)
+```
+
+<Warning>
+  This is a **synchronous method** (not async). Do not use `await` when calling this function.
+</Warning>
+
+## Parameters
+
+<ParamField path="redirect_uri" type="string" required>
+  OAuth2 callback route where the user will be redirected after authorization
+</ParamField>
+
+<ParamField path="client_id" type="string" required>
+  Client ID of your RSO application (obtained from Riot Developer Portal)
+</ParamField>
+
+<ParamField path="response_type" type="string" required>
+  OAuth2 response type. Should be `"code"` for authorization code flow
+</ParamField>
+
+<ParamField path="scopes" type="List[str]" required>
+  List of scopes to request. Available scopes:
+  - `openid` - **Required** for authentication
+  - `cpid` - Access to player identification
+  - `offline_access` - Enables refresh tokens for long-term access
+</ParamField>
+
+<ParamField path="login_hint" type="string" optional>
+  Pre-populate data on the login page. Supported formats:
+  - `{regioncode}` - e.g., "na"
+  - `{regioncode}|{username}` - e.g., "na|PlayerName"
+  - `{regioncode}#{userid}` - e.g., "na#12345"
+</ParamField>
+
+<ParamField path="ui_locales" type="List[str]" optional>
+  List of BCP47 language tag values in order of preference (most to least preferred). Examples: `["en-US", "es-MX"]`
+</ParamField>
+
+<ParamField path="state" type="string" optional>
+  Opaque value for CSRF protection. The same value will be returned to your redirect_uri. Recommended for security
+</ParamField>
+
+## Returns
+
+<ResponseField name="url" type="str">
+  A fully constructed Riot Sign-On authorization URL that can be used to redirect users
+</ResponseField>
+
+## Example
+
+```python
+from valaw import Client
+
+# Initialize client (RSO link creation doesn't require async)
+client = Client(token="YOUR_API_KEY", cluster="americas")
+
+# Basic RSO link with required parameters
+auth_url = client.create_RSO_link(
+    redirect_uri="https://yourapp.com/oauth/callback",
+    client_id="your-client-id",
+    response_type="code",
+    scopes=["openid"]
+)
+
+print(f"Authorization URL: {auth_url}")
+# Redirect user to this URL
+```
+
+## Advanced Example
+
+```python
+from valaw import Client
+import secrets
+
+client = Client(token="YOUR_API_KEY", cluster="americas")
+
+# Generate CSRF token for security
+state_token = secrets.token_urlsafe(32)
+
+# Create RSO link with all optional parameters
+auth_url = client.create_RSO_link(
+    redirect_uri="https://yourapp.com/oauth/callback",
+    client_id="your-client-id",
+    response_type="code",
+    scopes=["openid", "cpid", "offline_access"],
+    login_hint="na|PlayerName",  # Pre-fill login form
+    ui_locales=["en-US", "es-ES"],  # Preferred languages
+    state=state_token  # CSRF protection
+)
+
+# Store state token in session for verification
+print(f"State token: {state_token}")
+print(f"Authorization URL: {auth_url}")
+
+# When user is redirected back to your callback:
+# 1. Verify the state parameter matches your stored state_token
+# 2. Exchange the authorization code for an access token
+```
+
+## OAuth2 Flow
+
+1. **Generate RSO Link**: Use this method to create the authorization URL
+2. **Redirect User**: Send the user to the generated URL
+3. **User Authorizes**: User logs in and grants permissions
+4. **Callback**: User is redirected to your `redirect_uri` with an authorization code
+5. **Exchange Code**: Use the code to obtain access tokens (via Riot's token endpoint)
+6. **API Access**: Use the access token with `GET_getByAccessToken()` to retrieve user data
+
+<Info>
+  **Scope Requirements**:
+  - `openid` is **mandatory** for authentication
+  - Add `offline_access` if you need refresh tokens
+  - Add `cpid` for additional player identification data
+</Info>
+
+<Note>
+  This method only generates the authorization URL. You'll need to implement the OAuth2 callback handler separately to exchange the authorization code for access tokens.
+</Note>
+
+<Warning>
+  Always validate the `state` parameter in your callback to prevent CSRF attacks. The state value returned to your redirect_uri must match the one you sent.
+</Warning>

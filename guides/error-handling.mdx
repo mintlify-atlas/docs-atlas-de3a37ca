@@ -1,0 +1,300 @@
+---
+title: Error handling
+description: Learn how to handle errors and exceptions when using Valaw
+---
+
+## Exception classes
+
+Valaw provides several exception classes for different error scenarios. All exceptions are available under `valaw.Exceptions`.
+
+### RiotAPIResponseError
+
+Raised when the Riot API returns an error response. This exception includes the HTTP status code and error message from the API.
+
+```python
+class RiotAPIResponseError(Exception):
+    """Riot API Response Error.
+    
+    More information about response errors can be found at:
+    https://developer.riotgames.com/docs/portal#web-apis_response-codes
+    """
+    def __init__(self, status_code: int, status_message: str):
+        self.status_code = status_code
+        self.status_message = status_message
+        self.message = f"{status_code} - {status_message}"
+```
+
+See client.py:55-65 for the implementation.
+
+**Common HTTP status codes:**
+
+- `400` - Bad request (invalid parameters)
+- `401` - Unauthorized (invalid or expired API key)
+- `403` - Forbidden (API key doesn't have access to this resource)
+- `404` - Not found (resource doesn't exist)
+- `429` - Rate limit exceeded
+- `500` - Internal server error
+- `503` - Service unavailable
+
+### InvalidCluster
+
+Raised when an invalid cluster is provided. Valid clusters are: `americas`, `asia`, `esports`, `europe`.
+
+```python
+class InvalidCluster(ValueError):
+    """Invalid Cluster. Valid clusters are: americas, asia, esports, europe."""
+```
+
+See client.py:49-50 for the implementation.
+
+### InvalidRegion
+
+Raised when an invalid region is provided. Valid regions are: `ap`, `br`, `esports`, `eu`, `kr`, `latam`, `na`.
+
+```python
+class InvalidRegion(ValueError):
+    """Invalid Region. Valid regions are: ap, br, esports, eu, kr, latam, na."""
+```
+
+See client.py:52-53 for the implementation.
+
+### InvalidLocale
+
+Raised when an invalid locale is provided for content requests.
+
+```python
+class InvalidLocale(ValueError):
+    """Invalid Locale. Valid locales are: ar-ae, de-de, en-gb, en-us, ..."""
+```
+
+See client.py:70-71 for the implementation.
+
+### InvalidQueue
+
+Raised when an invalid queue type is provided for match queries.
+
+```python
+class InvalidQueue(ValueError):
+    """Invalid Queue. Valid queues are: competitive, unrated, spikerush, ..."""
+```
+
+See client.py:73-74 for the implementation.
+
+### InvalidPlatformType
+
+Raised when an invalid platform type is provided for console requests. Valid platform types are: `playstation`, `xbox`.
+
+```python
+class InvalidPlatformType(ValueError):
+    """Invalid Platform Type. Valid platform types are: playstation, xbox."""
+```
+
+See client.py:76-77 for the implementation.
+
+### InvalidRiotAPIKey
+
+Raised when no API key is provided or the key is empty.
+
+```python
+class InvalidRiotAPIKey(ValueError):
+    """Invalid Riot API Key. A Riot API key is required."""
+```
+
+See client.py:79-80 for the implementation.
+
+### FailedToParseJSON
+
+Raised when the API response cannot be parsed as JSON.
+
+```python
+class FailedToParseJSON(Exception):
+    """Failed to parse JSON."""
+```
+
+See client.py:67-68 for the implementation.
+
+## Basic error handling
+
+Use try-except blocks to handle exceptions gracefully:
+
+```python
+import valaw
+
+async def get_account(client, game_name, tag_line):
+    try:
+        account = await client.GET_getByRiotId(game_name, tag_line)
+        return account
+    except valaw.Exceptions.RiotAPIResponseError as e:
+        print(f"API Error: {e.status_code} - {e.status_message}")
+        return None
+    except valaw.Exceptions.InvalidCluster as e:
+        print(f"Cluster Error: {e}")
+        return None
+```
+
+## Handling rate limits
+
+When you exceed the API rate limits, the Riot API returns a `429` status code. Implement retry logic with exponential backoff:
+
+```python
+import asyncio
+import valaw
+
+async def request_with_retry(fn, max_retries=3):
+    """Call fn(), retrying on 429 with exponential backoff."""
+    for attempt in range(max_retries):
+        try:
+            return await fn()
+        except valaw.Exceptions.RiotAPIResponseError as e:
+            if e.status_code == 429 and attempt < max_retries - 1:
+                wait_time = 2 ** attempt  # 1s, 2s, 4s
+                print(f"Rate limited, retrying in {wait_time}s...")
+                await asyncio.sleep(wait_time)
+            else:
+                raise
+
+# Usage
+account = await request_with_retry(
+    lambda: client.GET_getByRiotId("PlayerName", "NA1")
+)
+```
+
+See tests/test_client.py:18-28 for a real-world example.
+
+## Handling authentication errors
+
+Check for authentication issues before making API calls:
+
+```python
+import valaw
+
+try:
+    client = valaw.Client(token="", cluster="americas")
+except valaw.Exceptions.InvalidRiotAPIKey:
+    print("Error: API key is required")
+    # Prompt user for API key or load from config
+```
+
+If your API key expires during runtime (common with development keys):
+
+```python
+async def make_request(client):
+    try:
+        return await client.GET_getByRiotId("PlayerName", "NA1")
+    except valaw.Exceptions.RiotAPIResponseError as e:
+        if e.status_code == 401:
+            print("API key expired or invalid")
+            # Refresh API key and retry
+        elif e.status_code == 403:
+            print("API key doesn't have access to this resource")
+        else:
+            raise
+```
+
+## Handling not found errors
+
+When a resource doesn't exist, the API returns a `404` status code:
+
+```python
+async def get_account_safe(client, game_name, tag_line):
+    try:
+        account = await client.GET_getByRiotId(game_name, tag_line)
+        return account
+    except valaw.Exceptions.RiotAPIResponseError as e:
+        if e.status_code == 404:
+            print(f"Account {game_name}#{tag_line} not found")
+            return None
+        else:
+            raise  # Re-raise other errors
+```
+
+## Validation errors
+
+Handle validation errors for invalid parameters:
+
+```python
+import valaw
+
+try:
+    client = valaw.Client(token="valid-token", cluster="invalid")
+except valaw.Exceptions.InvalidCluster as e:
+    print(f"Cluster error: {e}")
+
+try:
+    matches = await client.GET_getRecent("invalid-queue", "na")
+except valaw.Exceptions.InvalidQueue as e:
+    print(f"Queue error: {e}")
+
+try:
+    content = await client.GET_getContent("na", "invalid-locale")
+except valaw.Exceptions.InvalidLocale as e:
+    print(f"Locale error: {e}")
+```
+
+## Complete error handling example
+
+Here's a comprehensive example combining multiple error handling strategies:
+
+```python
+import asyncio
+import valaw
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+async def request_with_retry(fn, max_retries=2):
+    """Call fn(), retrying once on 429 after a delay."""
+    for attempt in range(max_retries):
+        try:
+            return await fn()
+        except valaw.Exceptions.RiotAPIResponseError as e:
+            if e.status_code == 429 and attempt == 0:
+                print("Rate limited, retrying in 10s...")
+                await asyncio.sleep(10)
+            else:
+                raise
+
+async def main():
+    # Validate API key
+    api_token = os.getenv("RIOT_API_TOKEN")
+    if api_token is None:
+        raise ValueError("RIOT_API_TOKEN environment variable is not set.")
+    
+    # Initialize client with error handling
+    try:
+        client = valaw.Client(api_token, "americas")
+    except valaw.Exceptions.InvalidCluster as e:
+        print(f"Invalid cluster: {e}")
+        return
+    except valaw.Exceptions.InvalidRiotAPIKey as e:
+        print(f"Invalid API key: {e}")
+        return
+    
+    try:
+        # Get recent matches with retry logic
+        try:
+            recent_matches = await request_with_retry(
+                lambda: client.GET_getRecent("competitive", "na")
+            )
+            print(f"Found {len(recent_matches.matchIds)} recent matches")
+        except valaw.Exceptions.RiotAPIResponseError as e:
+            if e.status_code == 404:
+                print("No recent matches found")
+            elif e.status_code == 401:
+                print("Authentication failed - check your API key")
+            else:
+                print(f"API error: {e.status_code} - {e.status_message}")
+        except valaw.Exceptions.InvalidQueue as e:
+            print(f"Invalid queue: {e}")
+        
+    finally:
+        await client.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## Additional resources
+
+For more information about Riot API response codes and error handling, see the [Riot Games API Response Codes documentation](https://developer.riotgames.com/docs/portal#web-apis_response-codes).

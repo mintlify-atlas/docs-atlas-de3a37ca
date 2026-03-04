@@ -1,0 +1,149 @@
+---
+title: Authentication
+description: Learn how to authenticate with the Riot Games API using Valaw
+---
+
+## Getting a Riot API key
+
+To use Valaw, you need a Riot Games API key. You can obtain one from the [Riot Developer Portal](https://developer.riotgames.com/).
+
+### Development vs production keys
+
+Riot Games provides two types of API keys:
+
+- **Development keys**: Free, automatically generated keys with lower rate limits. These expire every 24 hours and are perfect for testing and development.
+- **Production keys**: Require an application and approval process. These keys have higher rate limits and don't expire, making them suitable for production applications.
+
+For getting started with Valaw, a development key is sufficient.
+
+## Storing keys securely
+
+Never hardcode your API key directly in your source code. Instead, use environment variables to keep your credentials secure.
+
+### Using environment variables
+
+Create a `.env` file in your project root:
+
+```bash
+RIOT_API_TOKEN=RGAPI-your-api-key-here
+```
+
+Then load it in your Python application using `python-dotenv`:
+
+```python
+import os
+from dotenv import load_dotenv
+import valaw
+
+load_dotenv()
+
+RIOT_API_TOKEN = os.getenv("RIOT_API_TOKEN")
+```
+
+<Warning>
+  Make sure to add `.env` to your `.gitignore` file to prevent accidentally committing your API key to version control.
+</Warning>
+
+## Initializing the client
+
+Once you have your API key, initialize the Valaw client by passing your token and cluster:
+
+```python
+import valaw
+import os
+
+client = valaw.Client(
+    token=os.getenv("RIOT_API_TOKEN"),
+    cluster="americas"
+)
+```
+
+### Choosing a cluster
+
+The cluster parameter determines which Riot API server to connect to. Valid clusters are:
+
+- `americas` - For North America, Latin America, and Brazil
+- `europe` - For Europe, Turkey, Russia, and Middle East
+- `asia` - For Asia Pacific and Korea
+- `esports` - For esports data
+
+Choose the cluster nearest to your server's location for optimal performance.
+
+### Client validation
+
+The client automatically validates your API key and cluster when initialized. If either is invalid, it will raise an exception:
+
+```python
+try:
+    client = valaw.Client(token="", cluster="invalid")
+except valaw.Exceptions.InvalidRiotAPIKey:
+    print("API key is required")
+except valaw.Exceptions.InvalidCluster:
+    print("Invalid cluster provided")
+```
+
+See client.py:110-117 and client.py:149-152 for the validation implementation.
+
+## Closing the client
+
+The Valaw client uses `aiohttp` for async HTTP requests. Always close the client session when you're done:
+
+```python
+import asyncio
+import valaw
+
+async def main():
+    client = valaw.Client(token="your-token", cluster="americas")
+    
+    try:
+        # Your API calls here
+        account = await client.GET_getByRiotId("PlayerName", "NA1")
+    finally:
+        await client.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## Best practices
+
+1. **Use environment variables**: Never commit API keys to version control
+2. **Close sessions**: Always close the client session using `await client.close()` or use a context manager pattern
+3. **Choose the right cluster**: Use the cluster closest to your application for better latency
+4. **Rotate development keys**: Development keys expire after 24 hours, so implement a system to refresh them
+5. **Apply for production keys**: When you're ready to deploy, apply for a production key with higher rate limits
+6. **Handle authentication errors**: Implement proper error handling for expired or invalid keys
+
+## Full example
+
+Here's a complete example showing proper authentication and client usage:
+
+```python
+import asyncio
+import os
+from dotenv import load_dotenv
+import valaw
+
+load_dotenv()
+
+async def main():
+    # Get API key from environment
+    api_token = os.getenv("RIOT_API_TOKEN")
+    
+    if api_token is None:
+        raise ValueError("RIOT_API_TOKEN environment variable is not set.")
+    
+    # Initialize client
+    client = valaw.Client(api_token, "americas")
+    
+    try:
+        # Make API calls
+        account = await client.GET_getByRiotId("PlayerName", "NA1", "americas")
+        print(f"Found account: {account.gameName}#{account.tagLine}")
+    finally:
+        # Always close the session
+        await client.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```

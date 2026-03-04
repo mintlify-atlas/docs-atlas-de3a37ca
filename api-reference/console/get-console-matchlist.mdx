@@ -1,0 +1,75 @@
+---
+title: "Get Console Matchlist"
+api: "GET https://{region}.api.riotgames.com/val/match/console/v1/matchlists/by-puuid/{puuid}"
+description: "Get matchlist for console games played by a player"
+---
+
+## Method Signature
+
+```python
+await client.GET_getConsoleMatchlist(puuid, region, platformType)
+```
+
+## Parameters
+
+<ParamField path="puuid" type="string" required>
+  The player's PUUID (Player Universally Unique Identifier)
+</ParamField>
+
+<ParamField path="region" type="string" required>
+  The region to execute against. Valid regions: `ap`, `br`, `esports`, `eu`, `kr`, `latam`, `na`
+</ParamField>
+
+<ParamField query="platformType" type="string" required>
+  The platform type to retrieve matchlist for. Valid values:
+  - `playstation` - PlayStation console
+  - `xbox` - Xbox console
+</ParamField>
+
+## Returns
+
+<ResponseField name="response" type="Union[MatchlistDto, Dict]">
+  Returns a `MatchlistDto` object containing a list of match IDs, or raw JSON dict if `raw_data=True`
+</ResponseField>
+
+## Exceptions
+
+- `InvalidRegion`: If the provided region is invalid
+- `InvalidPlatformType`: If the provided platform type is invalid (must be "playstation" or "xbox")
+- `RiotAPIResponseError`: If the API response indicates an error
+
+## Example
+
+```python
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(token="YOUR_API_KEY", cluster="americas")
+    
+    # Get PlayStation matchlist for a player
+    matchlist = await client.GET_getConsoleMatchlist(
+        puuid="abc123-def456-ghi789-jkl012",
+        region="na",
+        platformType="playstation"
+    )
+    
+    # Get Xbox matchlist for the same player
+    xbox_matchlist = await client.GET_getConsoleMatchlist(
+        puuid="abc123-def456-ghi789-jkl012",
+        region="na",
+        platformType="xbox"
+    )
+    
+    # Iterate through match IDs
+    for match_id in matchlist.history:
+        print(f"Match ID: {match_id}")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+<Note>
+  This endpoint returns match history for console VALORANT only. Platform types are case-insensitive but must be either "playstation" or "xbox".
+</Note>

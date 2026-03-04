@@ -1,0 +1,321 @@
+---
+title: Rate limits
+description: Understand and manage Riot API rate limits when using Valaw
+---
+
+## Understanding Riot API rate limits
+
+The Riot Games API enforces rate limits to ensure fair usage and system stability. Rate limits are applied per API key and vary depending on your key type.
+
+### Development key limits
+
+Development keys have the following rate limits:
+
+- **20 requests per second**
+- **100 requests per 2 minutes**
+
+These limits are sufficient for testing and development purposes.
+
+### Production key limits
+
+Production keys have higher rate limits that vary based on your application's approval level. You can view your specific limits in the [Riot Developer Portal](https://developer.riotgames.com/).
+
+## Rate limit structure
+
+Riot API uses a multi-tiered rate limiting system:
+
+1. **Application rate limits**: Apply to your entire API key across all endpoints
+2. **Method rate limits**: Apply to specific API endpoints
+3. **Service rate limits**: Apply at the service level (automatically handled by Riot)
+
+When you exceed a rate limit, the API returns a `429 Too Many Requests` response with a `RiotAPIResponseError` exception.
+
+## How Valaw handles rate limits
+
+Valaw does not automatically handle rate limiting - it's your responsibility to implement rate limit management in your application. When you exceed a rate limit, Valaw raises a `RiotAPIResponseError` with status code `429`:
+
+```python
+try:
+    account = await client.GET_getByRiotId("PlayerName", "NA1")
+except valaw.Exceptions.RiotAPIResponseError as e:
+    if e.status_code == 429:
+        print("Rate limit exceeded")
+```
+
+See client.py:55-65 for the exception implementation.
+
+## Implementing retry logic
+
+When you hit a rate limit, implement retry logic with delays:
+
+```python
+import asyncio
+import valaw
+
+async def request_with_retry(fn, max_retries=3):
+    """Call fn(), retrying on 429 with exponential backoff."""
+    for attempt in range(max_retries):
+        try:
+            return await fn()
+        except valaw.Exceptions.RiotAPIResponseError as e:
+            if e.status_code == 429 and attempt < max_retries - 1:
+                wait_time = 2 ** attempt  # 1s, 2s, 4s
+                print(f"Rate limited, retrying in {wait_time}s...")
+                await asyncio.sleep(wait_time)
+            else:
+                raise
+
+# Usage
+account = await request_with_retry(
+    lambda: client.GET_getByRiotId("PlayerName", "NA1")
+)
+```
+
+See tests/test_client.py:18-28 for a real-world retry implementation.
+
+## Best practices for staying within limits
+
+### 1. Implement request queuing
+
+Use a queue to control the rate of outgoing requests:
+
+```python
+import asyncio
+from collections import deque
+
+class RateLimiter:
+    def __init__(self, max_requests, time_window):
+        self.max_requests = max_requests
+        self.time_window = time_window
+        self.requests = deque()
+    
+    async def acquire(self):
+        now = asyncio.get_event_loop().time()
+        
+        # Remove old requests outside the time window
+        while self.requests and self.requests[0] < now - self.time_window:
+            self.requests.popleft()
+        
+        # Wait if we've hit the limit
+        if len(self.requests) >= self.max_requests:
+            sleep_time = self.time_window - (now - self.requests[0])
+            await asyncio.sleep(sleep_time)
+            return await self.acquire()
+        
+        self.requests.append(now)
+
+# Usage
+limiter = RateLimiter(max_requests=20, time_window=1.0)  # 20 per second
+
+async def rate_limited_request(client, game_name, tag_line):
+    await limiter.acquire()
+    return await client.GET_getByRiotId(game_name, tag_line)
+```
+
+### 2. Batch requests efficiently
+
+Minimize API calls by:
+
+- Caching responses when appropriate
+- Using endpoints that return multiple records (e.g., matchlists)
+- Avoiding repeated requests for the same data
+
+```python
+from datetime import datetime, timedelta
+
+class SimpleCache:
+    def __init__(self, ttl=300):
+        self.cache = {}
+        self.ttl = ttl
+    
+    def get(self, key):
+        if key in self.cache:
+            value, timestamp = self.cache[key]
+            if datetime.now() - timestamp < timedelta(seconds=self.ttl):
+                return value
+        return None
+    
+    def set(self, key, value):
+        self.cache[key] = (value, datetime.now())
+
+# Usage
+cache = SimpleCache(ttl=300)  # 5 minute cache
+
+async def get_account_cached(client, game_name, tag_line):
+    cache_key = f"{game_name}#{tag_line}"
+    
+    # Check cache first
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+    
+    # Make API request
+    account = await client.GET_getByRiotId(game_name, tag_line)
+    cache.set(cache_key, account)
+    return account
+```
+
+### 3. Handle concurrent requests carefully
+
+When making multiple concurrent requests, ensure you don't exceed rate limits:
+
+```python
+import asyncio
+
+async def get_multiple_accounts(client, players):
+    # Limit concurrency to stay within rate limits
+    semaphore = asyncio.Semaphore(10)  # Max 10 concurrent requests
+    
+    async def fetch_with_semaphore(game_name, tag_line):
+        async with semaphore:
+            try:
+                return await client.GET_getByRiotId(game_name, tag_line)
+            except valaw.Exceptions.RiotAPIResponseError as e:
+                if e.status_code == 429:
+                    # Wait and retry
+                    await asyncio.sleep(2)
+                    return await client.GET_getByRiotId(game_name, tag_line)
+                raise
+    
+    tasks = [fetch_with_semaphore(name, tag) for name, tag in players]
+    return await asyncio.gather(*tasks, return_exceptions=True)
+```
+
+See tests/test_client.py:92-97 for an example of concurrent requests.
+
+### 4. Monitor your usage
+
+Keep track of your API usage to avoid hitting limits:
+
+```python
+import time
+from collections import deque
+
+class UsageMonitor:
+    def __init__(self):
+        self.requests_per_second = deque(maxlen=20)
+        self.requests_per_two_minutes = deque(maxlen=100)
+    
+    def record_request(self):
+        now = time.time()
+        self.requests_per_second.append(now)
+        self.requests_per_two_minutes.append(now)
+    
+    def get_usage(self):
+        now = time.time()
+        
+        # Count requests in the last second
+        recent_second = sum(1 for t in self.requests_per_second if now - t <= 1.0)
+        
+        # Count requests in the last 2 minutes
+        recent_two_minutes = sum(1 for t in self.requests_per_two_minutes if now - t <= 120.0)
+        
+        return {
+            "last_second": recent_second,
+            "last_two_minutes": recent_two_minutes,
+            "limit_second": 20,
+            "limit_two_minutes": 100
+        }
+
+# Usage
+monitor = UsageMonitor()
+
+async def monitored_request(client, game_name, tag_line):
+    usage = monitor.get_usage()
+    print(f"Current usage: {usage['last_second']}/{usage['limit_second']} per second")
+    
+    monitor.record_request()
+    return await client.GET_getByRiotId(game_name, tag_line)
+```
+
+### 5. Use appropriate delays
+
+When you receive a `429` response, wait before retrying:
+
+```python
+async def smart_retry(fn, initial_delay=1.0, max_retries=3):
+    """Retry with exponential backoff."""
+    delay = initial_delay
+    
+    for attempt in range(max_retries):
+        try:
+            return await fn()
+        except valaw.Exceptions.RiotAPIResponseError as e:
+            if e.status_code == 429 and attempt < max_retries - 1:
+                print(f"Rate limited, waiting {delay}s...")
+                await asyncio.sleep(delay)
+                delay *= 2  # Exponential backoff
+            else:
+                raise
+```
+
+## Complete example with rate limiting
+
+Here's a full example showing proper rate limit handling:
+
+```python
+import asyncio
+import valaw
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+async def request_with_retry(fn, max_retries=2):
+    """Call fn(), retrying once on 429 after a 10s delay."""
+    for attempt in range(max_retries):
+        try:
+            return await fn()
+        except valaw.Exceptions.RiotAPIResponseError as e:
+            if e.status_code == 429 and attempt == 0:
+                print("Rate limited, retrying in 10s...")
+                await asyncio.sleep(10)
+            else:
+                raise
+
+async def main():
+    api_token = os.getenv("RIOT_API_TOKEN")
+    if api_token is None:
+        raise ValueError("RIOT_API_TOKEN environment variable is not set.")
+    
+    client = valaw.Client(api_token, "americas")
+    
+    try:
+        # Get recent matches with rate limit handling
+        recent_matches = await request_with_retry(
+            lambda: client.GET_getRecent("competitive", "na")
+        )
+        
+        match_ids = recent_matches.matchIds[:5]  # Limit to 5 matches
+        
+        # Fetch matches with controlled concurrency
+        semaphore = asyncio.Semaphore(5)  # Max 5 concurrent requests
+        
+        async def fetch_match(match_id):
+            async with semaphore:
+                return await request_with_retry(
+                    lambda: client.GET_getMatch(match_id, "na")
+                )
+        
+        matches = await asyncio.gather(
+            *[fetch_match(mid) for mid in match_ids],
+            return_exceptions=True
+        )
+        
+        print(f"Successfully fetched {len(matches)} matches")
+        
+    finally:
+        await client.close()
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## Monitoring rate limit headers
+
+While Valaw doesn't expose rate limit headers directly, you can check the Riot API documentation for information about the `X-App-Rate-Limit` and `X-Method-Rate-Limit` headers that the API returns. Consider implementing custom request logging to track these headers.
+
+## Additional resources
+
+- [Riot API Rate Limiting Documentation](https://developer.riotgames.com/docs/portal#web-apis_rate-limiting)
+- [Best Practices for Production Applications](https://developer.riotgames.com/docs/portal#web-apis_best-practices)

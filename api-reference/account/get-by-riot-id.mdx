@@ -1,0 +1,142 @@
+---
+title: "Get Account by Riot ID"
+description: "Retrieve account information using a player's Riot ID (gameName#tagLine)"
+---
+
+## GET_getByRiotId
+
+```python
+await client.GET_getByRiotId(gameName: str, tagLine: str, cluster: Optional[str] = None)
+```
+
+Get account information by Riot ID. The Riot ID consists of a game name and tag line (e.g., "PlayerName#NA1").
+
+### Parameters
+
+<ParamField path="gameName" type="str" required>
+  The game name portion of the Riot ID (before the # symbol).
+</ParamField>
+
+<ParamField path="tagLine" type="str" required>
+  The tag line portion of the Riot ID (after the # symbol).
+</ParamField>
+
+<ParamField path="cluster" type="str" optional>
+  The cluster to retrieve from. If not provided, uses the client's default cluster.
+  
+  Valid clusters:
+  - `americas`
+  - `asia`
+  - `esports`
+  - `europe`
+</ParamField>
+
+### Returns
+
+<ResponseField name="AccountDto" type="object">
+  Account information object (or raw dict if `raw_data=True`).
+  
+  <Expandable title="properties">
+    <ResponseField name="puuid" type="str">
+      The player's unique identifier.
+    </ResponseField>
+    
+    <ResponseField name="gameName" type="str | None">
+      The player's in-game name (without tag).
+    </ResponseField>
+    
+    <ResponseField name="tagLine" type="str | None">
+      The player's tagline (e.g., "NA1").
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Exceptions
+
+- `InvalidCluster` - If the provided cluster is invalid
+- `RiotAPIResponseError` - If the API response indicates an error (e.g., account not found)
+
+### Example
+
+```python
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(
+        token="RGAPI-your-api-key-here",
+        cluster="americas"
+    )
+    
+    try:
+        # Get account by Riot ID
+        account = await client.GET_getByRiotId(
+            gameName="PlayerName",
+            tagLine="NA1"
+        )
+        
+        print(f"PUUID: {account.puuid}")
+        print(f"Riot ID: {account.gameName}#{account.tagLine}")
+        
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        await client.close()
+
+asyncio.run(main())
+```
+
+### Example with Multiple Accounts
+
+```python
+import asyncio
+from valaw import Client
+
+async def get_account_info(client, game_name, tag_line):
+    try:
+        account = await client.GET_getByRiotId(game_name, tag_line)
+        return account
+    except Exception as e:
+        print(f"Error fetching {game_name}#{tag_line}: {e}")
+        return None
+
+async def main():
+    client = Client(
+        token="RGAPI-your-api-key-here",
+        cluster="americas"
+    )
+    
+    # Fetch multiple accounts
+    riot_ids = [
+        ("Player1", "NA1"),
+        ("Player2", "NA1"),
+        ("Player3", "NA1")
+    ]
+    
+    for game_name, tag_line in riot_ids:
+        account = await get_account_info(client, game_name, tag_line)
+        if account:
+            print(f"Found: {account.gameName}#{account.tagLine} (PUUID: {account.puuid})")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+### Response Example
+
+```python
+AccountDto(
+    puuid="abc123-def456-ghi789-jkl012",
+    gameName="PlayerName",
+    tagLine="NA1"
+)
+```
+
+<Note>
+  The game name and tag line are case-sensitive. Make sure to use the exact capitalization as displayed in the Riot client.
+</Note>
+
+<Warning>
+  This endpoint queries across the entire cluster. Make sure you're using the correct cluster for the player's region to get accurate results.
+</Warning>

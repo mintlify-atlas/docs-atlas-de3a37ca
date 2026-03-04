@@ -1,0 +1,157 @@
+---
+title: "Match history"
+description: "Retrieve and display a player's match history"
+---
+
+This example shows how to fetch a player's match history and retrieve detailed information about their recent games.
+
+## Overview
+
+To get a player's match history, you'll need to:
+
+1. Look up the account by Riot ID to get the PUUID
+2. Fetch the matchlist using the PUUID
+3. Optionally retrieve detailed match data for specific games
+
+## Complete example
+
+```python
+import asyncio
+from valaw import Client
+
+async def get_player_match_history():
+    # Initialize the client
+    client = Client(token="YOUR_RIOT_API_KEY", cluster="americas")
+    
+    try:
+        # Step 1: Get account by Riot ID
+        account = await client.GET_getByRiotId(
+            gameName="PlayerName",
+            tagLine="NA1"
+        )
+        print(f"Found player: {account.gameName}#{account.tagLine}")
+        print(f"PUUID: {account.puuid}")
+        
+        # Step 2: Get match history
+        matchlist = await client.GET_getMatchlist(
+            puuid=account.puuid,
+            region="na"
+        )
+        
+        print(f"\nFound {len(matchlist.history)} matches in history")
+        
+        # Step 3: Iterate through recent matches
+        for i, match_entry in enumerate(matchlist.history[:5]):  # Last 5 matches
+            print(f"\nMatch {i + 1}:")
+            print(f"  Match ID: {match_entry.matchId}")
+            print(f"  Queue: {match_entry.queueId}")
+            print(f"  Started: {match_entry.gameStartTimeMillis}")
+            
+            # Get detailed match data
+            match_details = await client.GET_getMatch(
+                matchId=match_entry.matchId,
+                region="na"
+            )
+            
+            # Display match information
+            print(f"  Map: {match_details.matchInfo.mapId}")
+            print(f"  Game mode: {match_details.matchInfo.gameMode}")
+            print(f"  Duration: {match_details.matchInfo.gameLengthMillis // 1000 // 60} minutes")
+            print(f"  Completed: {match_details.matchInfo.isCompleted}")
+            
+            # Find player's stats in this match
+            player_data = next(
+                (p for p in match_details.players if p.puuid == account.puuid),
+                None
+            )
+            
+            if player_data and player_data.stats:
+                print(f"\n  Player stats:")
+                print(f"    Agent: {player_data.characterId}")
+                print(f"    Score: {player_data.stats.score}")
+                print(f"    K/D/A: {player_data.stats.kills}/{player_data.stats.deaths}/{player_data.stats.assists}")
+                print(f"    Rounds played: {player_data.stats.roundsPlayed}")
+    
+    finally:
+        # Always close the session
+        await client.close()
+
+# Run the async function
+asyncio.run(get_player_match_history())
+```
+
+## Response structure
+
+The `GET_getMatchlist` method returns a `MatchlistDto` object with the following structure:
+
+```python
+@dataclass
+class MatchlistDto:
+    puuid: str
+    history: List[MatchlistEntryDto]
+
+@dataclass
+class MatchlistEntryDto:
+    matchId: str
+    gameStartTimeMillis: int
+    queueId: str
+```
+
+## Match details
+
+When you call `GET_getMatch`, you get detailed information including:
+
+- **Match info**: Map, game mode, duration, queue type
+- **Players**: All players in the match with their stats
+- **Teams**: Team composition and round results
+- **Round results**: Detailed round-by-round data including kills, economy, and abilities used
+
+<Tip>
+The matchlist endpoint returns matches in chronological order, with the most recent matches first.
+</Tip>
+
+## Filtering by queue type
+
+You can filter the match history by checking the `queueId` field:
+
+```python
+competitive_matches = [
+    match for match in matchlist.history 
+    if match.queueId == "competitive"
+]
+
+print(f"Competitive matches: {len(competitive_matches)}")
+```
+
+Common queue types include:
+- `competitive` - Ranked matches
+- `unrated` - Unrated matches
+- `spikerush` - Spike Rush mode
+- `deathmatch` - Deathmatch mode
+
+## Error handling
+
+<Warning>
+Always handle potential errors when fetching match history:
+</Warning>
+
+```python
+from valaw import Exceptions
+
+try:
+    matchlist = await client.GET_getMatchlist(
+        puuid=account.puuid,
+        region="na"
+    )
+except Exceptions.RiotAPIResponseError as e:
+    print(f"API Error {e.status_code}: {e.status_message}")
+except Exceptions.InvalidRegion as e:
+    print(f"Invalid region: {e}")
+```
+
+## Related methods
+
+- `GET_getByRiotId` - Look up account by Riot ID (client.py:198)
+- `GET_getMatchlist` - Get match history (client.py:319)
+- `GET_getMatch` - Get detailed match data (client.py:299)
+- `GET_getRecent` - Get recent matches by queue (client.py:339)

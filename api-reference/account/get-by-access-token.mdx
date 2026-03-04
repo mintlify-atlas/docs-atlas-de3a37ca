@@ -1,0 +1,152 @@
+---
+title: "Get Account by Access Token"
+description: "Retrieve the authenticated user's account information using an OAuth access token"
+---
+
+## GET_getByAccessToken
+
+```python
+await client.GET_getByAccessToken(authorization: str, cluster: Optional[str] = None)
+```
+
+Get account information for the authenticated user using an OAuth access token. This method retrieves the account associated with the provided authorization token.
+
+### Parameters
+
+<ParamField path="authorization" type="str" required>
+  The OAuth access token. Should be in the format `Bearer <token>` or just the token string.
+</ParamField>
+
+<ParamField path="cluster" type="str" optional>
+  The cluster to retrieve from. If not provided, uses the client's default cluster.
+  
+  Valid clusters:
+  - `americas`
+  - `asia`
+  - `esports`
+  - `europe`
+</ParamField>
+
+### Returns
+
+<ResponseField name="AccountDto" type="object">
+  Account information object for the authenticated user (or raw dict if `raw_data=True`).
+  
+  <Expandable title="properties">
+    <ResponseField name="puuid" type="str">
+      The player's unique identifier.
+    </ResponseField>
+    
+    <ResponseField name="gameName" type="str | None">
+      The player's in-game name (without tag).
+    </ResponseField>
+    
+    <ResponseField name="tagLine" type="str | None">
+      The player's tagline (e.g., "NA1").
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Exceptions
+
+- `InvalidCluster` - If the provided cluster is invalid
+- `RiotAPIResponseError` - If the API response indicates an error (e.g., invalid token, expired token)
+
+### Example
+
+```python
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(
+        token="RGAPI-your-api-key-here",
+        cluster="americas"
+    )
+    
+    try:
+        # Get account using OAuth access token
+        access_token = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        
+        account = await client.GET_getByAccessToken(
+            authorization=access_token
+        )
+        
+        print(f"Authenticated as: {account.gameName}#{account.tagLine}")
+        print(f"PUUID: {account.puuid}")
+        
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        await client.close()
+
+asyncio.run(main())
+```
+
+### Example with Riot Sign-On (RSO)
+
+```python
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(
+        token="RGAPI-your-api-key-here",
+        cluster="americas"
+    )
+    
+    try:
+        # Step 1: Create RSO authorization link
+        rso_link = client.create_RSO_link(
+            redirect_uri="http://localhost:3000/callback",
+            client_id="your-client-id",
+            response_type="code",
+            scopes=["openid", "cpid"]
+        )
+        
+        print(f"Authorize at: {rso_link}")
+        
+        # Step 2: After user authorizes, exchange code for access token
+        # (This step typically happens in your OAuth callback handler)
+        access_token = "Bearer <token-from-oauth-flow>"
+        
+        # Step 3: Get authenticated user's account
+        account = await client.GET_getByAccessToken(
+            authorization=access_token
+        )
+        
+        print(f"User: {account.gameName}#{account.tagLine}")
+        
+    finally:
+        await client.close()
+
+asyncio.run(main())
+```
+
+### Example Token Format
+
+```python
+# With Bearer prefix
+authorization = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+
+# Or just the token
+authorization = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+```
+
+### Response Example
+
+```python
+AccountDto(
+    puuid="abc123-def456-ghi789-jkl012",
+    gameName="AuthenticatedPlayer",
+    tagLine="NA1"
+)
+```
+
+<Info>
+  This endpoint is useful for applications that implement Riot Sign-On (RSO) authentication, allowing users to log in with their Riot account and retrieve their own account information.
+</Info>
+
+<Warning>
+  Never expose access tokens in client-side code or logs. Always handle tokens securely and use HTTPS for transmission.
+</Warning>

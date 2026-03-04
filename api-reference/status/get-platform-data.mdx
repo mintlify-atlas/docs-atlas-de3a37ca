@@ -1,0 +1,86 @@
+---
+title: "Get Platform Data"
+api: "GET https://{region}.api.riotgames.com/val/status/v1/platform-data"
+description: "Get VALORANT status for the given platform/region"
+---
+
+## Method Signature
+
+```python
+await client.GET_getPlatformData(region)
+```
+
+## Parameters
+
+<ParamField path="region" type="string" required>
+  The region to execute against. Valid regions: `ap`, `br`, `esports`, `eu`, `kr`, `latam`, `na`
+</ParamField>
+
+## Returns
+
+<ResponseField name="response" type="Union[PlatformDataDto, Dict]">
+  Returns a `PlatformDataDto` object containing platform status information, or raw JSON dict if `raw_data=True`
+</ResponseField>
+
+## Exceptions
+
+- `InvalidRegion`: If the provided region is invalid
+- `RiotAPIResponseError`: If the API response indicates an error
+
+## Response Data
+
+The platform data includes:
+- Platform ID and name
+- Locales supported
+- Maintenances (scheduled and ongoing)
+- Incidents (active issues affecting the platform)
+
+## Example
+
+```python
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(token="YOUR_API_KEY", cluster="americas")
+    
+    # Get platform status for North America
+    status = await client.GET_getPlatformData(region="na")
+    
+    print(f"Platform: {status.name}")
+    print(f"ID: {status.id}")
+    
+    # Check for active incidents
+    if status.incidents:
+        print("\nActive Incidents:")
+        for incident in status.incidents:
+            print(f"- {incident.titles[0].content}")
+    
+    # Check for scheduled maintenance
+    if status.maintenances:
+        print("\nScheduled Maintenance:")
+        for maintenance in status.maintenances:
+            print(f"- {maintenance.titles[0].content}")
+    
+    # Check multiple regions
+    regions = ["na", "eu", "ap", "kr"]
+    for region in regions:
+        region_status = await client.GET_getPlatformData(region=region)
+        print(f"\n{region.upper()}: {len(region_status.incidents)} incidents")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+<Info>
+  This endpoint is useful for:
+  - Monitoring server status before making game-related API calls
+  - Displaying server status on dashboards or status pages
+  - Checking for maintenance windows
+  - Alerting users about ongoing incidents
+</Info>
+
+<Note>
+  Platform status data is updated in real-time by Riot Games. Use this endpoint to check if services are operational before attempting other API calls.
+</Note>

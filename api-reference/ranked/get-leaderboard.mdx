@@ -1,0 +1,75 @@
+---
+title: "Get Leaderboard"
+api: "GET https://{region}.api.riotgames.com/val/ranked/v1/leaderboards/by-act/{actId}"
+description: "Get leaderboard for the competitive queue"
+---
+
+## Method Signature
+
+```python
+await client.GET_getLeaderboard(actId, region, size=200, startIndex=0)
+```
+
+## Parameters
+
+<ParamField path="actId" type="string" required>
+  The act ID to retrieve the leaderboard for
+</ParamField>
+
+<ParamField path="region" type="string" required>
+  The region to execute against. Valid regions: `ap`, `br`, `esports`, `eu`, `kr`, `latam`, `na`
+</ParamField>
+
+<ParamField query="size" type="int" default="200">
+  The amount of entries to retrieve. Valid values: 1 to 200
+</ParamField>
+
+<ParamField query="startIndex" type="int" default="0">
+  The index to start from for pagination
+</ParamField>
+
+## Returns
+
+<ResponseField name="response" type="Union[LeaderboardDto, Dict]">
+  Returns a `LeaderboardDto` object containing the leaderboard data, or raw JSON dict if `raw_data=True`
+</ResponseField>
+
+## Exceptions
+
+- `InvalidRegion`: If the provided region is invalid
+- `ValueError`: If the size is not between 1 and 200
+- `RiotAPIResponseError`: If the API response indicates an error
+
+## Example
+
+```python
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(token="YOUR_API_KEY", cluster="americas")
+    
+    # Get top 200 players for a specific act
+    leaderboard = await client.GET_getLeaderboard(
+        actId="52e9749a-41ae-4c84-8c88-b2b1f9e40d8c",
+        region="na",
+        size=200,
+        startIndex=0
+    )
+    
+    # Get next 200 players
+    next_page = await client.GET_getLeaderboard(
+        actId="52e9749a-41ae-4c84-8c88-b2b1f9e40d8c",
+        region="na",
+        size=200,
+        startIndex=200
+    )
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+<Note>
+  This method retrieves ranked leaderboard data for PC VALORANT. For console leaderboards, use `GET_getConsoleLeaderboard`.
+</Note>

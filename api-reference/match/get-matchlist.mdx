@@ -1,0 +1,181 @@
+---
+title: 'Get matchlist'
+description: 'Get match history for a player by PUUID'
+---
+
+## Method signature
+
+```python
+async def GET_getMatchlist(
+    self,
+    puuid: str,
+    region: str
+) -> Union[MatchlistDto, Dict]
+```
+
+Get matchlist for games played by a player identified by their PUUID.
+
+## Parameters
+
+<ParamField path="puuid" type="string" required>
+  The player's unique PUUID. Can be obtained from account endpoints like `GET_getByRiotId`.
+</ParamField>
+
+<ParamField path="region" type="string" required>
+  The region to execute against. Must be one of: `ap`, `br`, `esports`, `eu`, `kr`, `latam`, `na`.
+</ParamField>
+
+## Returns
+
+<ResponseField name="MatchlistDto" type="object">
+  Match history data for the specified player.
+  
+  <Expandable title="properties">
+    <ResponseField name="puuid" type="string" required>
+      The player's PUUID.
+    </ResponseField>
+    
+    <ResponseField name="history" type="MatchlistEntryDto[]" required>
+      List of match entries.
+      
+      <Expandable title="MatchlistEntryDto properties">
+        <ResponseField name="matchId" type="string">
+          Unique match identifier. Use this with `GET_getMatch` to retrieve full match details.
+        </ResponseField>
+        
+        <ResponseField name="gameStartTimeMillis" type="integer">
+          Unix timestamp when the game started.
+        </ResponseField>
+        
+        <ResponseField name="queueId" type="string">
+          Queue type identifier (e.g., "competitive", "unrated").
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Note>
+  When `raw_data=True` is set on the client, this method returns a `Dict` instead of a `MatchlistDto` object.
+</Note>
+
+## Exceptions
+
+- `InvalidRegion`: If the provided region is invalid.
+- `RiotAPIResponseError`: If the API response indicates an error (e.g., player not found).
+
+## Example
+
+<CodeGroup>
+
+```python Basic usage
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(
+        token="RGAPI-your-token-here",
+        cluster="americas"
+    )
+    
+    # First, get the player's PUUID
+    account = await client.GET_getByRiotId(
+        gameName="PlayerName",
+        tagLine="NA1"
+    )
+    
+    # Get their match history
+    matchlist = await client.GET_getMatchlist(
+        puuid=account.puuid,
+        region="na"
+    )
+    
+    print(f"Found {len(matchlist.history)} matches")
+    for entry in matchlist.history[:5]:  # Show first 5
+        print(f"Match: {entry.matchId}")
+        print(f"  Queue: {entry.queueId}")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+```python Get full match details
+import asyncio
+from valaw import Client
+from datetime import datetime
+
+async def main():
+    client = Client(
+        token="RGAPI-your-token-here",
+        cluster="americas"
+    )
+    
+    # Get matchlist
+    puuid = "player-puuid-here"
+    matchlist = await client.GET_getMatchlist(
+        puuid=puuid,
+        region="na"
+    )
+    
+    # Get details for the most recent match
+    if matchlist.history:
+        recent_match = matchlist.history[0]
+        match = await client.GET_getMatch(
+            matchId=recent_match.matchId,
+            region="na"
+        )
+        
+        # Convert timestamp to readable date
+        start_time = datetime.fromtimestamp(
+            recent_match.gameStartTimeMillis / 1000
+        )
+        
+        print(f"Most recent match: {start_time}")
+        print(f"Map: {match.matchInfo.mapId}")
+        print(f"Mode: {match.matchInfo.gameMode}")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+```python Filter by queue type
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(
+        token="RGAPI-your-token-here",
+        cluster="americas"
+    )
+    
+    puuid = "player-puuid-here"
+    matchlist = await client.GET_getMatchlist(
+        puuid=puuid,
+        region="na"
+    )
+    
+    # Filter for competitive matches only
+    competitive_matches = [
+        entry for entry in matchlist.history
+        if entry.queueId == "competitive"
+    ]
+    
+    print(f"Competitive matches: {len(competitive_matches)}")
+    print(f"Total matches: {len(matchlist.history)}")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+</CodeGroup>
+
+## Related
+
+- [MatchlistDto object reference](/api-reference/objects/match-objects)
+- [Get match details](/api-reference/match/get-match)
+- [Get account by Riot ID](/api-reference/account/get-by-riot-id)
+- [Get account by PUUID](/api-reference/account/get-by-puuid)
+- [Error handling guide](/guides/error-handling)

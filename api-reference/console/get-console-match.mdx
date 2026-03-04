@@ -1,0 +1,61 @@
+---
+title: "Get Console Match"
+api: "GET https://{region}.api.riotgames.com/val/match/console/v1/matches/{matchId}"
+description: "Get match console data by match ID"
+---
+
+## Method Signature
+
+```python
+await client.GET_getConsoleMatch(matchId, region)
+```
+
+## Parameters
+
+<ParamField path="matchId" type="string" required>
+  The match ID to retrieve data for
+</ParamField>
+
+<ParamField path="region" type="string" required>
+  The region to execute against. Valid regions: `ap`, `br`, `esports`, `eu`, `kr`, `latam`, `na`
+</ParamField>
+
+## Returns
+
+<ResponseField name="response" type="Union[MatchDto, Dict]">
+  Returns a `MatchDto` object containing detailed match data, or raw JSON dict if `raw_data=True`
+</ResponseField>
+
+## Exceptions
+
+- `InvalidRegion`: If the provided region is invalid
+- `RiotAPIResponseError`: If the API response indicates an error
+
+## Example
+
+```python
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(token="YOUR_API_KEY", cluster="americas")
+    
+    # Get console match details
+    match = await client.GET_getConsoleMatch(
+        matchId="abc123-def456-ghi789",
+        region="na"
+    )
+    
+    # Access match data
+    print(f"Match ID: {match.matchInfo.matchId}")
+    print(f"Map: {match.matchInfo.mapId}")
+    print(f"Game Mode: {match.matchInfo.queueId}")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+<Note>
+  This endpoint retrieves match data specifically for console VALORANT matches (PlayStation and Xbox). For PC matches, use `GET_getMatch`.
+</Note>

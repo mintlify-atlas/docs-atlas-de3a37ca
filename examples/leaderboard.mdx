@@ -1,0 +1,238 @@
+---
+title: "Leaderboard"
+description: "Fetch and display competitive leaderboard rankings"
+---
+
+This example demonstrates how to retrieve the competitive leaderboard for a specific act and region, with support for pagination.
+
+## Overview
+
+The leaderboard endpoint allows you to fetch ranked player data for any competitive act. You can customize the number of entries and implement pagination to browse through rankings.
+
+## Basic example
+
+```python
+import asyncio
+from valaw import Client
+
+async def get_leaderboard():
+    # Initialize the client
+    client = Client(token="YOUR_RIOT_API_KEY", cluster="americas")
+    
+    try:
+        # Get leaderboard for a specific act
+        leaderboard = await client.GET_getLeaderboard(
+            actId="3f61c772-4560-cd3f-5d3f-a7ab5abda6b3",  # Example act ID
+            region="na",
+            size=10,  # Get top 10 players
+            startIndex=0  # Start from rank 1
+        )
+        
+        print(f"Act ID: {leaderboard.actId}")
+        print(f"Region: {leaderboard.shard}")
+        print(f"Total players: {leaderboard.totalPlayers}")
+        print(f"Immortal starting page: {leaderboard.immortalStartingPage}")
+        print(f"Immortal starting index: {leaderboard.immortalStartingIndex}")
+        print(f"Top tier RR threshold: {leaderboard.topTierRRThreshold}")
+        
+        print("\nTop 10 Players:")
+        print("-" * 80)
+        
+        for player in leaderboard.players:
+            # Player names may be hidden if private
+            display_name = f"{player.gameName}#{player.tagLine}" if player.gameName != "Private" else "Private"
+            
+            print(f"Rank #{player.leaderboardRank}: {display_name}")
+            print(f"  Rating: {player.rankedRating} RR")
+            print(f"  Wins: {player.numberOfWins}")
+            print(f"  Tier: {player.competitiveTier}")
+            print()
+    
+    finally:
+        await client.close()
+
+# Run the async function
+asyncio.run(get_leaderboard())
+```
+
+## Pagination example
+
+To browse through the leaderboard, use the `startIndex` and `size` parameters:
+
+```python
+import asyncio
+from valaw import Client
+
+async def get_leaderboard_with_pagination():
+    client = Client(token="YOUR_RIOT_API_KEY", cluster="americas")
+    
+    try:
+        page_size = 50
+        current_page = 0
+        max_pages = 5  # Get first 5 pages (250 players)
+        
+        all_players = []
+        
+        for page in range(max_pages):
+            start_index = page * page_size
+            
+            print(f"Fetching page {page + 1} (ranks {start_index + 1}-{start_index + page_size})...")
+            
+            leaderboard = await client.GET_getLeaderboard(
+                actId="3f61c772-4560-cd3f-5d3f-a7ab5abda6b3",
+                region="na",
+                size=page_size,
+                startIndex=start_index
+            )
+            
+            all_players.extend(leaderboard.players)
+            
+            # Check if we've reached the end
+            if len(leaderboard.players) < page_size:
+                print("Reached end of leaderboard")
+                break
+        
+        print(f"\nTotal players fetched: {len(all_players)}")
+        
+        # Find highest rated player
+        if all_players:
+            top_player = max(all_players, key=lambda p: p.rankedRating)
+            print(f"\nHighest rated player:")
+            print(f"  {top_player.gameName}#{top_player.tagLine}")
+            print(f"  Rank: #{top_player.leaderboardRank}")
+            print(f"  Rating: {top_player.rankedRating} RR")
+    
+    finally:
+        await client.close()
+
+asyncio.run(get_leaderboard_with_pagination())
+```
+
+## Method signature
+
+The `GET_getLeaderboard` method accepts the following parameters:
+
+```python
+async def GET_getLeaderboard(
+    actId: str,           # The act ID to retrieve leaderboard for
+    region: str,          # Region (na, eu, ap, kr, etc.)
+    size: int = 200,      # Number of entries (1-200, default 200)
+    startIndex: int = 0   # Starting index for pagination (default 0)
+) -> Union[LeaderboardDto, Dict]
+```
+
+<Info>
+The `size` parameter must be between 1 and 200. The API will return an error if you request more than 200 entries at once.
+</Info>
+
+## Response structure
+
+```python
+@dataclass
+class LeaderboardDto:
+    actId: str
+    players: List[PlayerDto]
+    totalPlayers: int
+    immortalStartingPage: int
+    immortalStartingIndex: int
+    topTierRRThreshold: int
+    tierDetails: dict
+    startIndex: int
+    shard: str
+    query: Optional[str]
+
+@dataclass
+class PlayerDto:
+    leaderboardRank: int
+    rankedRating: int
+    numberOfWins: int
+    competitiveTier: int
+    puuid: str = ""
+    gameName: str = "Private"
+    tagLine: str = ""
+```
+
+## Finding specific players
+
+You can search for a specific player in the leaderboard:
+
+```python
+async def find_player_rank(target_name: str, target_tag: str):
+    client = Client(token="YOUR_RIOT_API_KEY", cluster="americas")
+    
+    try:
+        # You'll need to paginate through the leaderboard to find them
+        page_size = 200
+        start_index = 0
+        found = False
+        
+        while not found:
+            leaderboard = await client.GET_getLeaderboard(
+                actId="3f61c772-4560-cd3f-5d3f-a7ab5abda6b3",
+                region="na",
+                size=page_size,
+                startIndex=start_index
+            )
+            
+            for player in leaderboard.players:
+                if player.gameName == target_name and player.tagLine == target_tag:
+                    print(f"Found {target_name}#{target_tag}!")
+                    print(f"  Rank: #{player.leaderboardRank}")
+                    print(f"  Rating: {player.rankedRating} RR")
+                    print(f"  Wins: {player.numberOfWins}")
+                    found = True
+                    break
+            
+            if len(leaderboard.players) < page_size:
+                if not found:
+                    print(f"Player {target_name}#{target_tag} not found in leaderboard")
+                break
+            
+            start_index += page_size
+    
+    finally:
+        await client.close()
+```
+
+## Understanding competitive tiers
+
+The `competitiveTier` field represents the player's rank:
+
+- **0-2**: Unranked
+- **3-5**: Iron (1-3)
+- **6-8**: Bronze (1-3)
+- **9-11**: Silver (1-3)
+- **12-14**: Gold (1-3)
+- **15-17**: Platinum (1-3)
+- **18-20**: Diamond (1-3)
+- **21-23**: Ascendant (1-3)
+- **24-26**: Immortal (1-3)
+- **27**: Radiant
+
+<Tip>
+The `immortalStartingIndex` field tells you where Immortal+ players begin in the leaderboard, which is useful if you only want to fetch top-tier players.
+</Tip>
+
+## Error handling
+
+```python
+from valaw import Exceptions
+
+try:
+    leaderboard = await client.GET_getLeaderboard(
+        actId="invalid-act-id",
+        region="na",
+        size=250  # Too large!
+    )
+except ValueError as e:
+    print(f"Invalid parameter: {e}")
+except Exceptions.RiotAPIResponseError as e:
+    print(f"API Error {e.status_code}: {e.status_message}")
+except Exceptions.InvalidRegion as e:
+    print(f"Invalid region: {e}")
+```
+
+## Related methods
+
+- `GET_getLeaderboard` - Get PC leaderboard (client.py:375)
+- `GET_getConsoleLeaderboard` - Get console leaderboard (client.py:486)

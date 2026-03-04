@@ -1,0 +1,287 @@
+---
+title: Status Objects
+description: Data objects returned by status API endpoints
+---
+
+## PlatformDataDto
+
+Contains platform status information including maintenances and incidents.
+
+<ResponseField name="id" type="str" required>
+  The platform identifier
+</ResponseField>
+
+<ResponseField name="name" type="str" required>
+  The platform name
+</ResponseField>
+
+<ResponseField name="locales" type="List[str]" required>
+  List of supported locales for this platform
+</ResponseField>
+
+<ResponseField name="maintenances" type="List[StatusDto]" required>
+  List of current and scheduled maintenances
+</ResponseField>
+
+<ResponseField name="incidents" type="List[StatusDto]" required>
+  List of current incidents affecting the platform
+</ResponseField>
+
+### Example
+
+```python
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(token="YOUR_API_KEY", cluster="americas")
+    
+    # Get platform status
+    status = await client.GET_getPlatformData(region="na")
+    
+    print(f"Platform: {status.name} (ID: {status.id})")
+    print(f"Supported locales: {', '.join(status.locales)}")
+    
+    # Check for active maintenances
+    if status.maintenances:
+        print(f"\nActive Maintenances ({len(status.maintenances)}):")
+        for maintenance in status.maintenances:
+            print(f"  - ID: {maintenance.id}")
+            print(f"    Status: {maintenance.maintenance_status}")
+            for title in maintenance.titles:
+                print(f"    Title ({title.locale}): {title.content}")
+    else:
+        print("\nNo active maintenances")
+    
+    # Check for incidents
+    if status.incidents:
+        print(f"\nActive Incidents ({len(status.incidents)}):")
+        for incident in status.incidents:
+            print(f"  - ID: {incident.id}")
+            print(f"    Severity: {incident.incident_severity}")
+            for title in incident.titles:
+                print(f"    Title ({title.locale}): {title.content}")
+    else:
+        print("\nNo active incidents")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+---
+
+## StatusDto
+
+Represents a maintenance or incident status.
+
+<ResponseField name="id" type="int" required>
+  The unique identifier for this status
+</ResponseField>
+
+<ResponseField name="maintenance_status" type="str" required>
+  The maintenance status (e.g., "scheduled", "in_progress", "complete")
+  
+  Only applicable for maintenance entries. May be null or empty for incidents.
+</ResponseField>
+
+<ResponseField name="incident_severity" type="str" required>
+  The severity level of the incident (e.g., "info", "warning", "critical")
+  
+  Only applicable for incident entries. May be null or empty for maintenances.
+</ResponseField>
+
+<ResponseField name="titles" type="List[ContentDto]" required>
+  List of localized titles for this status
+</ResponseField>
+
+<ResponseField name="updates" type="List[UpdateDto]" required>
+  List of updates/announcements for this status
+</ResponseField>
+
+<ResponseField name="created_at" type="str" required>
+  ISO 8601 timestamp when this status was created
+</ResponseField>
+
+<ResponseField name="updated_at" type="str" required>
+  ISO 8601 timestamp when this status was last updated
+</ResponseField>
+
+<ResponseField name="platforms" type="List[str]" required>
+  List of platforms affected by this status
+</ResponseField>
+
+<ResponseField name="archived_at" type="str | None">
+  ISO 8601 timestamp when this status was archived. None if still active.
+</ResponseField>
+
+### Example
+
+```python
+# Check maintenance details
+for maintenance in platform_status.maintenances:
+    print(f"Maintenance #{maintenance.id}")
+    print(f"Status: {maintenance.maintenance_status}")
+    print(f"Platforms: {', '.join(maintenance.platforms)}")
+    print(f"Created: {maintenance.created_at}")
+    print(f"Updated: {maintenance.updated_at}")
+    
+    # Display title in English
+    en_title = next((t for t in maintenance.titles if t.locale == "en_US"), None)
+    if en_title:
+        print(f"Title: {en_title.content}")
+    
+    # Display latest update
+    if maintenance.updates:
+        latest = maintenance.updates[-1]
+        print(f"Latest update: {latest.created_at}")
+```
+
+---
+
+## ContentDto
+
+Represents localized content for a status title or update.
+
+<ResponseField name="locale" type="str" required>
+  The locale code (e.g., "en_US", "ja_JP")
+</ResponseField>
+
+<ResponseField name="content" type="str" required>
+  The localized content text
+</ResponseField>
+
+<Note>
+  This ContentDto is specific to status objects and different from the ContentDto in content-objects. The status version only contains locale and content fields.
+</Note>
+
+### Example
+
+```python
+# Display title in user's preferred language
+preferred_locale = "en_US"
+
+for incident in platform_status.incidents:
+    # Try to find title in preferred locale
+    title = next(
+        (t for t in incident.titles if t.locale == preferred_locale),
+        incident.titles[0] if incident.titles else None
+    )
+    
+    if title:
+        print(f"[{title.locale}] {title.content}")
+```
+
+---
+
+## UpdateDto
+
+Represents an update or announcement for a maintenance or incident.
+
+<ResponseField name="id" type="int" required>
+  The unique identifier for this update
+</ResponseField>
+
+<ResponseField name="author" type="str" required>
+  The author of the update
+</ResponseField>
+
+<ResponseField name="publish" type="bool" required>
+  Whether this update is published
+</ResponseField>
+
+<ResponseField name="publish_locations" type="List[str]" required>
+  List of locations where this update is published
+</ResponseField>
+
+<ResponseField name="created_at" type="str" required>
+  ISO 8601 timestamp when this update was created
+</ResponseField>
+
+<ResponseField name="updated_at" type="str" required>
+  ISO 8601 timestamp when this update was last modified
+</ResponseField>
+
+### Example
+
+```python
+# Display all updates for a maintenance
+for maintenance in platform_status.maintenances:
+    if maintenance.updates:
+        print(f"Updates for Maintenance #{maintenance.id}:")
+        for update in sorted(maintenance.updates, key=lambda u: u.created_at):
+            print(f"\n[{update.created_at}] by {update.author}")
+            print(f"Published: {update.publish}")
+            if update.publish:
+                print(f"Locations: {', '.join(update.publish_locations)}")
+```
+
+---
+
+## Full Example
+
+```python
+import asyncio
+from valaw import Client
+from datetime import datetime
+
+async def check_valorant_status():
+    """Check VALORANT server status and display any issues."""
+    client = Client(token="YOUR_API_KEY", cluster="americas")
+    
+    try:
+        # Get status for North America
+        status = await client.GET_getPlatformData(region="na")
+        
+        print("=" * 60)
+        print(f"VALORANT Status - {status.name}")
+        print("=" * 60)
+        
+        # Display maintenances
+        if status.maintenances:
+            print("\n🔧 SCHEDULED MAINTENANCES")
+            for maintenance in status.maintenances:
+                if not maintenance.archived_at:
+                    display_status(maintenance, "maintenance")
+        
+        # Display incidents
+        if status.incidents:
+            print("\n⚠️  ACTIVE INCIDENTS")
+            for incident in status.incidents:
+                if not incident.archived_at:
+                    display_status(incident, "incident")
+        
+        # All clear
+        if not status.maintenances and not status.incidents:
+            print("\n✓ All systems operational")
+    
+    finally:
+        await client.close()
+
+def display_status(status_obj, status_type):
+    """Helper function to display a status object."""
+    print(f"\nID: {status_obj.id}")
+    
+    if status_type == "maintenance":
+        print(f"Status: {status_obj.maintenance_status}")
+    else:
+        print(f"Severity: {status_obj.incident_severity}")
+    
+    print(f"Platforms: {', '.join(status_obj.platforms)}")
+    
+    # Display English title
+    en_title = next(
+        (t for t in status_obj.titles if t.locale == "en_US"),
+        status_obj.titles[0] if status_obj.titles else None
+    )
+    if en_title:
+        print(f"Title: {en_title.content}")
+    
+    # Display latest update
+    if status_obj.updates:
+        latest = status_obj.updates[-1]
+        print(f"Last updated: {latest.updated_at}")
+        print(f"Published: {latest.publish}")
+
+asyncio.run(check_valorant_status())
+```

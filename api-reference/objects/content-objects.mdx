@@ -1,0 +1,324 @@
+---
+title: Content Objects
+description: Data objects returned by content API endpoints
+---
+
+## ContentDto
+
+Contains all game content information including characters, maps, skins, and more.
+
+<ResponseField name="version" type="str" required>
+  The content version identifier
+</ResponseField>
+
+<ResponseField name="characters" type="List[ContentItemDto]" required>
+  List of all VALORANT agents/characters
+</ResponseField>
+
+<ResponseField name="maps" type="List[ContentItemDto]" required>
+  List of all available maps
+</ResponseField>
+
+<ResponseField name="chromas" type="List[ContentItemDto]" required>
+  List of all weapon skin chromas
+</ResponseField>
+
+<ResponseField name="skins" type="List[ContentItemDto]" required>
+  List of all weapon skins
+</ResponseField>
+
+<ResponseField name="skinLevels" type="List[ContentItemDto]" required>
+  List of all weapon skin levels
+</ResponseField>
+
+<ResponseField name="equips" type="List[ContentItemDto]" required>
+  List of all equippable items (weapons, melee, etc.)
+</ResponseField>
+
+<ResponseField name="gameModes" type="List[ContentItemDto]" required>
+  List of all game modes
+</ResponseField>
+
+<ResponseField name="totems" type="List[ContentItemDto]" required>
+  List of all totems
+</ResponseField>
+
+<ResponseField name="sprays" type="List[ContentItemDto]" required>
+  List of all sprays
+</ResponseField>
+
+<ResponseField name="sprayLevels" type="List[ContentItemDto]" required>
+  List of all spray levels
+</ResponseField>
+
+<ResponseField name="charms" type="List[ContentItemDto]" required>
+  List of all gun buddies/charms
+</ResponseField>
+
+<ResponseField name="charmLevels" type="List[ContentItemDto]" required>
+  List of all charm levels
+</ResponseField>
+
+<ResponseField name="playerCards" type="List[ContentItemDto]" required>
+  List of all player cards
+</ResponseField>
+
+<ResponseField name="playerTitles" type="List[ContentItemDto]" required>
+  List of all player titles
+</ResponseField>
+
+<ResponseField name="acts" type="List[ActDto]" required>
+  List of all acts and episodes
+</ResponseField>
+
+<ResponseField name="ceremonies" type="List[ContentItemDto]" required>
+  List of all ceremonies
+</ResponseField>
+
+### Example
+
+```python
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(token="YOUR_API_KEY", cluster="americas")
+    
+    # Get content with English localization
+    content = await client.GET_getContent(region="na", locale="en-us")
+    
+    print(f"Content Version: {content.version}")
+    print(f"\nCharacters ({len(content.characters)}):")
+    for character in content.characters:
+        print(f"  - {character.name} (ID: {character.id})")
+    
+    print(f"\nMaps ({len(content.maps)}):")
+    for map_item in content.maps:
+        print(f"  - {map_item.name}")
+    
+    print(f"\nActive Acts:")
+    for act in content.acts:
+        if act.isActive:
+            print(f"  - {act.name} (Type: {act.type})")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+---
+
+## ContentItemDto
+
+Represents a single content item (agent, map, skin, etc.).
+
+<ResponseField name="name" type="str" required>
+  The English name of the content item
+</ResponseField>
+
+<ResponseField name="id" type="str" required>
+  The unique identifier for this content item
+</ResponseField>
+
+<ResponseField name="assetName" type="str" required>
+  The internal asset name
+</ResponseField>
+
+<ResponseField name="localizedNames" type="LocalizedNamesDto | None">
+  Localized names for this content item in all supported languages
+</ResponseField>
+
+<ResponseField name="assetPath" type="str | None">
+  The path to the asset (optional)
+</ResponseField>
+
+### Example
+
+```python
+# Find a specific character
+content = await client.GET_getContent(region="na", locale="en-us")
+
+jett = next((char for char in content.characters if char.name == "Jett"), None)
+if jett:
+    print(f"Name: {jett.name}")
+    print(f"ID: {jett.id}")
+    print(f"Asset: {jett.assetName}")
+    
+    if jett.localizedNames:
+        print(f"Japanese Name: {jett.localizedNames.ja_JP}")
+        print(f"Korean Name: {jett.localizedNames.ko_KR}")
+```
+
+---
+
+## ActDto
+
+Represents an act or episode in VALORANT.
+
+<ResponseField name="name" type="str" required>
+  The name of the act/episode
+</ResponseField>
+
+<ResponseField name="id" type="str" required>
+  The unique identifier for this act
+</ResponseField>
+
+<ResponseField name="isActive" type="bool" required>
+  Whether this act is currently active
+</ResponseField>
+
+<ResponseField name="type" type="str" required>
+  The type of act ("act", "episode", etc.)
+</ResponseField>
+
+<ResponseField name="localizedNames" type="LocalizedNamesDto | None">
+  Localized names for this act in all supported languages
+</ResponseField>
+
+<ResponseField name="parentId" type="str | None">
+  The parent episode ID if this is an act
+</ResponseField>
+
+### Example
+
+```python
+# Find the current active act
+content = await client.GET_getContent(region="na")
+
+active_acts = [act for act in content.acts if act.isActive]
+for act in active_acts:
+    print(f"Active {act.type}: {act.name}")
+    print(f"Act ID: {act.id}")
+    if act.parentId:
+        print(f"Part of Episode: {act.parentId}")
+```
+
+---
+
+## LocalizedNamesDto
+
+Contains localized names for content items in all supported languages.
+
+<ResponseField name="ar_AE" type="str" required>
+  Arabic (UAE)
+</ResponseField>
+
+<ResponseField name="de_DE" type="str" required>
+  German (Germany)
+</ResponseField>
+
+<ResponseField name="en_GB" type="str" required>
+  English (UK)
+</ResponseField>
+
+<ResponseField name="en_US" type="str" required>
+  English (US)
+</ResponseField>
+
+<ResponseField name="es_ES" type="str" required>
+  Spanish (Spain)
+</ResponseField>
+
+<ResponseField name="es_MX" type="str" required>
+  Spanish (Mexico)
+</ResponseField>
+
+<ResponseField name="fr_FR" type="str" required>
+  French (France)
+</ResponseField>
+
+<ResponseField name="id_ID" type="str" required>
+  Indonesian (Indonesia)
+</ResponseField>
+
+<ResponseField name="it_IT" type="str" required>
+  Italian (Italy)
+</ResponseField>
+
+<ResponseField name="ja_JP" type="str" required>
+  Japanese (Japan)
+</ResponseField>
+
+<ResponseField name="ko_KR" type="str" required>
+  Korean (South Korea)
+</ResponseField>
+
+<ResponseField name="pl_PL" type="str" required>
+  Polish (Poland)
+</ResponseField>
+
+<ResponseField name="pt_BR" type="str" required>
+  Portuguese (Brazil)
+</ResponseField>
+
+<ResponseField name="ru_RU" type="str" required>
+  Russian (Russia)
+</ResponseField>
+
+<ResponseField name="th_TH" type="str" required>
+  Thai (Thailand)
+</ResponseField>
+
+<ResponseField name="tr_TR" type="str" required>
+  Turkish (Turkey)
+</ResponseField>
+
+<ResponseField name="vi_VN" type="str" required>
+  Vietnamese (Vietnam)
+</ResponseField>
+
+<ResponseField name="zh_CN" type="str" required>
+  Chinese (Simplified)
+</ResponseField>
+
+<ResponseField name="zh_TW" type="str" required>
+  Chinese (Traditional)
+</ResponseField>
+
+### Example
+
+```python
+# Display an agent name in multiple languages
+content = await client.GET_getContent(region="na", locale="en-us")
+
+phoenix = next((char for char in content.characters if char.name == "Phoenix"), None)
+if phoenix and phoenix.localizedNames:
+    print("Phoenix in different languages:")
+    print(f"English: {phoenix.localizedNames.en_US}")
+    print(f"Japanese: {phoenix.localizedNames.ja_JP}")
+    print(f"Korean: {phoenix.localizedNames.ko_KR}")
+    print(f"Spanish: {phoenix.localizedNames.es_ES}")
+    print(f"French: {phoenix.localizedNames.fr_FR}")
+    print(f"German: {phoenix.localizedNames.de_DE}")
+```
+
+---
+
+## Supported Locales
+
+When calling `GET_getContent()`, you can specify a locale parameter for faster response times:
+
+- `ar-ae` - Arabic (UAE)
+- `de-de` - German
+- `en-gb` - English (UK)
+- `en-us` - English (US)
+- `es-es` - Spanish (Spain)
+- `es-mx` - Spanish (Mexico)
+- `fr-fr` - French
+- `id-id` - Indonesian
+- `it-it` - Italian
+- `ja-jp` - Japanese
+- `ko-kr` - Korean
+- `pl-pl` - Polish
+- `pt-br` - Portuguese (Brazil)
+- `ru-ru` - Russian
+- `th-th` - Thai
+- `tr-tr` - Turkish
+- `vi-vn` - Vietnamese
+- `zh-cn` - Chinese (Simplified)
+- `zh-tw` - Chinese (Traditional)
+
+```python
+# Get content with specific locale
+content = await client.GET_getContent(region="na", locale="ja-jp")
+```

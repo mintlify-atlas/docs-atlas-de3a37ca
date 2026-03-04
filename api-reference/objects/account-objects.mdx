@@ -1,0 +1,51 @@
+---
+title: Account Objects
+description: Data objects returned by account-related API endpoints
+---
+
+## AccountDto
+
+Represents a VALORANT account with player identification information.
+
+<ResponseField name="puuid" type="str" required>
+  The player's unique identifier (PUUID)
+</ResponseField>
+
+<ResponseField name="gameName" type="str | None">
+  The player's in-game name (part of Riot ID)
+</ResponseField>
+
+<ResponseField name="tagLine" type="str | None">
+  The player's tag line (part of Riot ID, e.g., #NA1)
+</ResponseField>
+
+### Example
+
+```python
+account = await client.GET_getByPuuid("player-puuid")
+print(f"Player: {account.gameName}#{account.tagLine}")
+print(f"PUUID: {account.puuid}")
+```
+
+## ActiveShardDto
+
+Represents the active shard (region) for a player in VALORANT.
+
+<ResponseField name="puuid" type="str" required>
+  The player's unique identifier
+</ResponseField>
+
+<ResponseField name="game" type="str" required>
+  The game identifier (always "val" for VALORANT)
+</ResponseField>
+
+<ResponseField name="activeShard" type="str" required>
+  The player's currently active shard/region (e.g., "na", "eu", "ap")
+</ResponseField>
+
+### Example
+
+```python
+shard = await client.GET_getActiveShard("player-puuid")
+print(f"Active region: {shard.activeShard}")
+```

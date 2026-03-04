@@ -1,0 +1,128 @@
+---
+title: "Client"
+description: "Initialize and manage the Valaw API client"
+---
+
+## Client Class
+
+The main client for interacting with the VALORANT API.
+
+### Constructor
+
+```python
+Client(token: str, cluster: str, raw_data: bool = False)
+```
+
+Initialize a new Valaw client instance.
+
+<ParamField path="token" type="str" required>
+  A Riot Games API access token used to authenticate requests.
+</ParamField>
+
+<ParamField path="cluster" type="str" required>
+  The default cluster to use in requests. The nearest cluster to the host computer/server should be selected.
+  
+  Valid clusters:
+  - `americas`
+  - `asia`
+  - `esports`
+  - `europe`
+</ParamField>
+
+<ParamField path="raw_data" type="bool" default="False">
+  Whether to return raw JSON data instead of parsed objects. When `False`, API requests return typed objects. When `True`, API requests return raw dictionaries.
+</ParamField>
+
+### Example
+
+```python
+import asyncio
+from valaw import Client
+
+async def main():
+    # Initialize client with americas cluster
+    client = Client(
+        token="RGAPI-your-api-key-here",
+        cluster="americas"
+    )
+    
+    # Use the client for API calls
+    account = await client.GET_getByRiotId("PlayerName", "NA1")
+    print(f"Found account: {account.gameName}#{account.tagLine}")
+    
+    # Always close the client when done
+    await client.close()
+
+asyncio.run(main())
+```
+
+### Example with Raw Data
+
+```python
+import asyncio
+from valaw import Client
+
+async def main():
+    # Initialize client to return raw JSON
+    client = Client(
+        token="RGAPI-your-api-key-here",
+        cluster="americas",
+        raw_data=True
+    )
+    
+    # Returns dictionary instead of AccountDto
+    account_data = await client.GET_getByRiotId("PlayerName", "NA1")
+    print(account_data)  # {'puuid': '...', 'gameName': '...', 'tagLine': '...'}
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+## Methods
+
+### close()
+
+```python
+await client.close()
+```
+
+Close the aiohttp session. Always call this method when you're done using the client to properly clean up resources.
+
+<Warning>
+  Always close the client when done to prevent resource leaks. Consider using Python's `async with` pattern or ensure `close()` is called in a `finally` block.
+</Warning>
+
+### Example with Context Manager Pattern
+
+```python
+import asyncio
+from valaw import Client
+
+class ValawClient:
+    def __init__(self, token, cluster):
+        self.client = Client(token, cluster)
+    
+    async def __aenter__(self):
+        return self.client
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.client.close()
+
+async def main():
+    async with ValawClient("RGAPI-your-api-key", "americas") as client:
+        account = await client.GET_getByRiotId("PlayerName", "NA1")
+        print(account.gameName)
+    # Client automatically closed
+
+asyncio.run(main())
+```
+
+## Exceptions
+
+The client may raise the following exceptions:
+
+- `InvalidCluster` - Raised when an invalid cluster is provided
+- `InvalidRiotAPIKey` - Raised when the API key is invalid or missing
+- `RiotAPIResponseError` - Raised when the Riot API returns an error response
+- `FailedToParseJSON` - Raised when the response cannot be parsed as JSON

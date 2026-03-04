@@ -1,122 +1,138 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Valaw",
+  "theme": "palm",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#f0dc6d",
+    "light": "#487da2",
+    "dark": "#a9b48f"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "https://media.brand.dev/6bab28f3-f32e-4cc2-ae29-751b17535ca2.png",
+  "logo": {
+    "light": "/logo-light.png",
+    "dark": "/logo-dark.png"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/jet612/valaw"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/jet612/valaw"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "introduction",
+              "installation",
+              "quickstart"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Guides",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "guides/authentication",
+              "guides/error-handling",
+              "guides/rate-limits",
+              "guides/raw-data"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Examples",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "examples/match-history",
+              "examples/leaderboard",
+              "examples/player-stats",
+              "examples/console-support"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Client",
             "pages": [
-              "api-reference/introduction"
+              "api-reference/client"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Account Endpoints",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api-reference/account/get-by-puuid",
+              "api-reference/account/get-by-riot-id",
+              "api-reference/account/get-by-access-token",
+              "api-reference/account/get-active-shard"
+            ]
+          },
+          {
+            "group": "Content Endpoints",
+            "pages": [
+              "api-reference/content/get-content"
+            ]
+          },
+          {
+            "group": "Match Endpoints",
+            "pages": [
+              "api-reference/match/get-match",
+              "api-reference/match/get-matchlist",
+              "api-reference/match/get-recent"
+            ]
+          },
+          {
+            "group": "Ranked Endpoints",
+            "pages": [
+              "api-reference/ranked/get-leaderboard"
+            ]
+          },
+          {
+            "group": "Console Endpoints",
+            "pages": [
+              "api-reference/console/get-console-match",
+              "api-reference/console/get-console-matchlist",
+              "api-reference/console/get-console-recent",
+              "api-reference/console/get-console-leaderboard"
+            ]
+          },
+          {
+            "group": "Status Endpoints",
+            "pages": [
+              "api-reference/status/get-platform-data"
+            ]
+          },
+          {
+            "group": "RSO",
+            "pages": [
+              "api-reference/rso/create-rso-link"
+            ]
+          },
+          {
+            "group": "Data Objects",
+            "pages": [
+              "api-reference/objects/account-objects",
+              "api-reference/objects/match-objects",
+              "api-reference/objects/ranked-objects",
+              "api-reference/objects/content-objects",
+              "api-reference/objects/status-objects"
+            ]
+          },
+          {
+            "group": "Exceptions",
+            "pages": [
+              "api-reference/exceptions"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

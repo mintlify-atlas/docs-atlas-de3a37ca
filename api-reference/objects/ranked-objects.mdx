@@ -1,0 +1,205 @@
+---
+title: Ranked Objects
+description: Data objects returned by ranked/leaderboard API endpoints
+---
+
+## LeaderboardDto
+
+Contains the competitive leaderboard data for a specific act.
+
+<ResponseField name="actId" type="str" required>
+  The act identifier for this leaderboard
+</ResponseField>
+
+<ResponseField name="players" type="List[PlayerDto]" required>
+  List of players on the leaderboard
+</ResponseField>
+
+<ResponseField name="totalPlayers" type="int" required>
+  Total number of players on the leaderboard
+</ResponseField>
+
+<ResponseField name="immortalStartingPage" type="int" required>
+  The page number where Immortal rank begins
+</ResponseField>
+
+<ResponseField name="immortalStartingIndex" type="int" required>
+  The index where Immortal rank begins
+</ResponseField>
+
+<ResponseField name="topTierRRThreshold" type="int" required>
+  The RR (Ranked Rating) threshold for top tier players
+</ResponseField>
+
+<ResponseField name="tierDetails" type="dict" required>
+  Dictionary containing tier-specific details and thresholds
+</ResponseField>
+
+<ResponseField name="startIndex" type="int" required>
+  The starting index for this leaderboard page
+</ResponseField>
+
+<ResponseField name="shard" type="str" required>
+  The shard/region for this leaderboard
+</ResponseField>
+
+<ResponseField name="query" type="str | None">
+  Optional query parameter used to filter the leaderboard
+</ResponseField>
+
+### Example
+
+```python
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(token="YOUR_API_KEY", cluster="americas")
+    
+    # Get top 50 players on NA leaderboard
+    leaderboard = await client.GET_getLeaderboard(
+        actId="current-act-id",
+        region="na",
+        size=50,
+        startIndex=0
+    )
+    
+    print(f"Total players on leaderboard: {leaderboard.totalPlayers}")
+    print(f"Immortal starts at index: {leaderboard.immortalStartingIndex}")
+    print(f"\nTop 10 Players:")
+    
+    for i, player in enumerate(leaderboard.players[:10], 1):
+        print(f"{i}. {player.gameName}#{player.tagLine}")
+        print(f"   Rank: {player.leaderboardRank} | RR: {player.rankedRating} | Wins: {player.numberOfWins}")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+---
+
+## PlayerDto
+
+Represents a player on the competitive leaderboard.
+
+<ResponseField name="leaderboardRank" type="int" required>
+  The player's rank position on the leaderboard (1 = top player)
+</ResponseField>
+
+<ResponseField name="rankedRating" type="int" required>
+  The player's current Ranked Rating (RR)
+</ResponseField>
+
+<ResponseField name="numberOfWins" type="int" required>
+  Total number of competitive wins for the act
+</ResponseField>
+
+<ResponseField name="competitiveTier" type="int" required>
+  The player's competitive tier/rank
+  
+  Tier values:
+  - 0-2: Unranked/Iron
+  - 3-5: Bronze
+  - 6-8: Silver
+  - 9-11: Gold
+  - 12-14: Platinum
+  - 15-17: Diamond
+  - 18-20: Ascendant
+  - 21-23: Immortal
+  - 24: Radiant
+</ResponseField>
+
+<ResponseField name="puuid" type="str" default='""'>
+  The player's unique identifier. Defaults to empty string for private profiles.
+</ResponseField>
+
+<ResponseField name="gameName" type="str" default='"Private"'>
+  The player's in-game name. Shows "Private" for private profiles.
+</ResponseField>
+
+<ResponseField name="tagLine" type="str" default='""'>
+  The player's tag line. Empty string for private profiles.
+</ResponseField>
+
+<Note>
+  Some players may have private profiles. In these cases, the `gameName` field will show "Private" and the `puuid` and `tagLine` fields will be empty strings.
+</Note>
+
+### Example
+
+```python
+# Accessing player information
+player = leaderboard.players[0]
+
+if player.gameName != "Private":
+    print(f"Player: {player.gameName}#{player.tagLine}")
+    print(f"PUUID: {player.puuid}")
+else:
+    print("Player: [Private Profile]")
+
+print(f"Rank: #{player.leaderboardRank}")
+print(f"RR: {player.rankedRating}")
+print(f"Wins: {player.numberOfWins}")
+print(f"Tier: {player.competitiveTier}")
+```
+
+---
+
+## Competitive Tier Reference
+
+The `competitiveTier` field maps to the following ranks:
+
+| Tier Value | Rank |
+|------------|------|
+| 0 | Unranked |
+| 3 | Iron 1 |
+| 4 | Iron 2 |
+| 5 | Iron 3 |
+| 6 | Bronze 1 |
+| 7 | Bronze 2 |
+| 8 | Bronze 3 |
+| 9 | Silver 1 |
+| 10 | Silver 2 |
+| 11 | Silver 3 |
+| 12 | Gold 1 |
+| 13 | Gold 2 |
+| 14 | Gold 3 |
+| 15 | Platinum 1 |
+| 16 | Platinum 2 |
+| 17 | Platinum 3 |
+| 18 | Diamond 1 |
+| 19 | Diamond 2 |
+| 20 | Diamond 3 |
+| 21 | Ascendant 1 |
+| 22 | Ascendant 2 |
+| 23 | Ascendant 3 |
+| 24 | Immortal 1 |
+| 25 | Immortal 2 |
+| 26 | Immortal 3 |
+| 27 | Radiant |
+
+### Helper Function
+
+```python
+def get_rank_name(tier: int) -> str:
+    """Convert competitive tier number to rank name."""
+    ranks = {
+        0: "Unranked",
+        3: "Iron 1", 4: "Iron 2", 5: "Iron 3",
+        6: "Bronze 1", 7: "Bronze 2", 8: "Bronze 3",
+        9: "Silver 1", 10: "Silver 2", 11: "Silver 3",
+        12: "Gold 1", 13: "Gold 2", 14: "Gold 3",
+        15: "Platinum 1", 16: "Platinum 2", 17: "Platinum 3",
+        18: "Diamond 1", 19: "Diamond 2", 20: "Diamond 3",
+        21: "Ascendant 1", 22: "Ascendant 2", 23: "Ascendant 3",
+        24: "Immortal 1", 25: "Immortal 2", 26: "Immortal 3",
+        27: "Radiant"
+    }
+    return ranks.get(tier, "Unknown")
+
+# Usage
+for player in leaderboard.players[:10]:
+    rank_name = get_rank_name(player.competitiveTier)
+    print(f"{player.gameName}: {rank_name} ({player.rankedRating} RR)")
+```

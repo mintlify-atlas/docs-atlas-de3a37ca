@@ -1,0 +1,363 @@
+---
+title: "Player stats"
+description: "Calculate and analyze player statistics from match data"
+---
+
+This example demonstrates a complete workflow for looking up a player, retrieving their matches, and calculating statistics like KDA and performance metrics.
+
+## Overview
+
+Player statistics aren't directly available from the API. Instead, you need to:
+
+1. Look up the player's account to get their PUUID
+2. Fetch their match history
+3. Retrieve detailed match data for each game
+4. Parse and aggregate statistics from the match data
+
+## Complete workflow
+
+```python
+import asyncio
+from valaw import Client
+from typing import Dict, List
+
+class PlayerStats:
+    def __init__(self):
+        self.total_kills = 0
+        self.total_deaths = 0
+        self.total_assists = 0
+        self.total_score = 0
+        self.matches_played = 0
+        self.wins = 0
+        self.losses = 0
+        self.rounds_played = 0
+        self.agent_usage = {}  # Track agent picks
+    
+    @property
+    def kda(self) -> float:
+        """Calculate KDA: (Kills + Assists) / Deaths"""
+        if self.total_deaths == 0:
+            return float(self.total_kills + self.total_assists)
+        return (self.total_kills + self.total_assists) / self.total_deaths
+    
+    @property
+    def avg_score(self) -> float:
+        """Calculate average score per match"""
+        if self.matches_played == 0:
+            return 0.0
+        return self.total_score / self.matches_played
+    
+    @property
+    def win_rate(self) -> float:
+        """Calculate win rate percentage"""
+        if self.matches_played == 0:
+            return 0.0
+        return (self.wins / self.matches_played) * 100
+
+async def calculate_player_stats():
+    client = Client(token="YOUR_RIOT_API_KEY", cluster="americas")
+    
+    try:
+        # Step 1: Look up player by Riot ID
+        print("Looking up player...")
+        account = await client.GET_getByRiotId(
+            gameName="PlayerName",
+            tagLine="NA1"
+        )
+        print(f"Found: {account.gameName}#{account.tagLine}")
+        
+        # Step 2: Get match history
+        print("\nFetching match history...")
+        matchlist = await client.GET_getMatchlist(
+            puuid=account.puuid,
+            region="na"
+        )
+        print(f"Found {len(matchlist.history)} matches")
+        
+        # Step 3: Initialize stats tracker
+        stats = PlayerStats()
+        
+        # Step 4: Process recent matches (last 10 for this example)
+        num_matches = min(10, len(matchlist.history))
+        print(f"\nAnalyzing last {num_matches} matches...\n")
+        
+        for i, match_entry in enumerate(matchlist.history[:num_matches]):
+            print(f"Processing match {i + 1}/{num_matches}...", end="\r")
+            
+            # Get detailed match data
+            match = await client.GET_getMatch(
+                matchId=match_entry.matchId,
+                region="na"
+            )
+            
+            # Find player in match
+            player = next(
+                (p for p in match.players if p.puuid == account.puuid),
+                None
+            )
+            
+            if not player or not player.stats:
+                continue
+            
+            # Aggregate statistics
+            stats.total_kills += player.stats.kills
+            stats.total_deaths += player.stats.deaths
+            stats.total_assists += player.stats.assists
+            stats.total_score += player.stats.score
+            stats.rounds_played += player.stats.roundsPlayed
+            stats.matches_played += 1
+            
+            # Track agent usage
+            agent = player.characterId
+            stats.agent_usage[agent] = stats.agent_usage.get(agent, 0) + 1
+            
+            # Determine if player won
+            player_team = next(
+                (team for team in match.teams if team.teamId == player.teamId),
+                None
+            )
+            if player_team and player_team.won:
+                stats.wins += 1
+            else:
+                stats.losses += 1
+        
+        # Step 5: Display results
+        print("\n" + "="*60)
+        print(f"Statistics for {account.gameName}#{account.tagLine}")
+        print("="*60)
+        print(f"\nMatches analyzed: {stats.matches_played}")
+        print(f"Record: {stats.wins}W - {stats.losses}L ({stats.win_rate:.1f}% win rate)")
+        print(f"\nCombat Stats:")
+        print(f"  Total Kills: {stats.total_kills}")
+        print(f"  Total Deaths: {stats.total_deaths}")
+        print(f"  Total Assists: {stats.total_assists}")
+        print(f"  KDA: {stats.kda:.2f}")
+        print(f"  Average Score: {stats.avg_score:.0f}")
+        print(f"  Rounds Played: {stats.rounds_played}")
+        
+        # Calculate per-match averages
+        if stats.matches_played > 0:
+            print(f"\nPer Match Averages:")
+            print(f"  Kills: {stats.total_kills / stats.matches_played:.1f}")
+            print(f"  Deaths: {stats.total_deaths / stats.matches_played:.1f}")
+            print(f"  Assists: {stats.total_assists / stats.matches_played:.1f}")
+        
+        # Display agent usage
+        print(f"\nAgent Usage:")
+        sorted_agents = sorted(
+            stats.agent_usage.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        for agent, count in sorted_agents:
+            percentage = (count / stats.matches_played) * 100
+            print(f"  {agent}: {count} matches ({percentage:.0f}%)")
+    
+    finally:
+        await client.close()
+
+# Run the async function
+asyncio.run(calculate_player_stats())
+```
+
+## Parsing match data
+
+Here's how to extract specific statistics from a match:
+
+```python
+async def get_match_performance(client, match_id: str, puuid: str, region: str):
+    """Get detailed performance stats for a specific match"""
+    match = await client.GET_getMatch(matchId=match_id, region=region)
+    
+    # Find player data
+    player = next((p for p in match.players if p.puuid == puuid), None)
+    if not player or not player.stats:
+        return None
+    
+    # Extract stats
+    performance = {
+        'match_id': match_id,
+        'agent': player.characterId,
+        'kills': player.stats.kills,
+        'deaths': player.stats.deaths,
+        'assists': player.stats.assists,
+        'score': player.stats.score,
+        'rounds_played': player.stats.roundsPlayed,
+        'playtime_minutes': player.stats.playtimeMillis // 1000 // 60,
+        'competitive_tier': player.competitiveTier,
+    }
+    
+    # Add ability casts if available
+    if player.stats.abilityCasts:
+        performance['ability_casts'] = {
+            'grenade': player.stats.abilityCasts.grenadeCasts,
+            'ability1': player.stats.abilityCasts.ability1Casts,
+            'ability2': player.stats.abilityCasts.ability2Casts,
+            'ultimate': player.stats.abilityCasts.ultimateCasts,
+        }
+    
+    # Determine match outcome
+    player_team = next((t for t in match.teams if t.teamId == player.teamId), None)
+    performance['won'] = player_team.won if player_team else False
+    
+    # Add match context
+    performance['map'] = match.matchInfo.mapId
+    performance['game_mode'] = match.matchInfo.gameMode
+    performance['queue'] = match.matchInfo.queueId
+    
+    return performance
+```
+
+## Calculating advanced metrics
+
+### Headshot percentage from round data
+
+```python
+async def calculate_headshot_percentage(client, match_id: str, puuid: str, region: str):
+    """Calculate headshot percentage from round-by-round data"""
+    match = await client.GET_getMatch(matchId=match_id, region=region)
+    
+    total_kills = 0
+    total_headshots = 0
+    
+    # Iterate through round results
+    for round_result in match.roundResults:
+        # Find player's stats in this round
+        player_round_stats = next(
+            (ps for ps in round_result.playerStats if ps.puuid == puuid),
+            None
+        )
+        
+        if not player_round_stats:
+            continue
+        
+        # Count kills and headshots from damage data
+        for damage in player_round_stats.damage:
+            headshots = damage.headshots
+            total_shots = damage.headshots + damage.bodyshots + damage.legshots
+            
+            if total_shots > 0:
+                total_kills += 1
+                if headshots > 0:
+                    total_headshots += 1
+    
+    if total_kills == 0:
+        return 0.0
+    
+    return (total_headshots / total_kills) * 100
+```
+
+### Economy efficiency
+
+```python
+def calculate_economy_efficiency(match, puuid: str) -> Dict:
+    """Calculate economy efficiency metrics"""
+    total_spent = 0
+    total_kills = 0
+    
+    for round_result in match.roundResults:
+        player_stats = next(
+            (ps for ps in round_result.playerStats if ps.puuid == puuid),
+            None
+        )
+        
+        if not player_stats:
+            continue
+        
+        total_spent += player_stats.economy.spent
+        total_kills += len(player_stats.kills)
+    
+    return {
+        'total_spent': total_spent,
+        'total_kills': total_kills,
+        'credits_per_kill': total_spent / total_kills if total_kills > 0 else 0,
+    }
+```
+
+## Filtering by game mode
+
+You can calculate stats for specific game modes:
+
+```python
+async def get_competitive_stats_only(client, account):
+    """Calculate stats for competitive matches only"""
+    matchlist = await client.GET_getMatchlist(
+        puuid=account.puuid,
+        region="na"
+    )
+    
+    # Filter for competitive matches
+    competitive_matches = [
+        m for m in matchlist.history 
+        if m.queueId == "competitive"
+    ]
+    
+    print(f"Found {len(competitive_matches)} competitive matches")
+    
+    # Process only competitive matches
+    stats = PlayerStats()
+    for match_entry in competitive_matches[:10]:
+        # Process match...
+        pass
+    
+    return stats
+```
+
+<Tip>
+To improve performance when analyzing many matches, consider processing them concurrently using `asyncio.gather()`.
+</Tip>
+
+## Player stats structure
+
+The `PlayerStatsDto` from match data contains:
+
+```python
+@dataclass
+class PlayerStatsDto:
+    score: int                          # Match score
+    roundsPlayed: int                   # Total rounds played
+    kills: int                          # Total kills
+    deaths: int                         # Total deaths
+    assists: int                        # Total assists
+    playtimeMillis: int                # Time played in milliseconds
+    abilityCasts: Optional[AbilityCastsDto]  # Ability usage
+
+@dataclass
+class AbilityCastsDto:
+    grenadeCasts: int
+    ability1Casts: int
+    ability2Casts: int
+    ultimateCasts: int
+```
+
+## Error handling
+
+<Warning>
+Always handle cases where match data might be incomplete or unavailable:
+</Warning>
+
+```python
+try:
+    match = await client.GET_getMatch(matchId=match_id, region=region)
+    
+    player = next((p for p in match.players if p.puuid == puuid), None)
+    
+    if not player:
+        print(f"Player not found in match {match_id}")
+        return
+    
+    if not player.stats:
+        print(f"Stats not available for match {match_id}")
+        return
+    
+    # Process stats...
+    
+except Exceptions.RiotAPIResponseError as e:
+    print(f"Failed to fetch match: {e.status_message}")
+```
+
+## Related methods
+
+- `GET_getByRiotId` - Look up player account (client.py:198)
+- `GET_getMatchlist` - Get match history (client.py:319)
+- `GET_getMatch` - Get detailed match data (client.py:299)

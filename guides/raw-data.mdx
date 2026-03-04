@@ -1,0 +1,325 @@
+---
+title: Raw data mode
+description: Learn how to use raw JSON responses instead of typed objects in Valaw
+---
+
+## What is raw data mode?
+
+By default, Valaw automatically converts API responses into typed Python objects using `dataclass-wizard`. This provides type hints, autocomplete, and a better developer experience.
+
+However, you can also request raw JSON responses by enabling `raw_data` mode. This gives you direct access to the API's JSON response without any processing.
+
+## Enabling raw data mode
+
+Set `raw_data=True` when initializing the client:
+
+```python
+import valaw
+
+# Typed responses (default)
+client = valaw.Client(token="your-token", cluster="americas")
+
+# Raw JSON responses
+client_raw = valaw.Client(token="your-token", cluster="americas", raw_data=True)
+```
+
+See client.py:149 for the constructor parameter.
+
+## Typed response example
+
+With `raw_data=False` (the default), responses are converted to typed objects:
+
+```python
+import valaw
+
+client = valaw.Client(token="your-token", cluster="americas", raw_data=False)
+
+# Returns an AccountDto object
+account = await client.GET_getByRiotId("PlayerName", "NA1")
+
+# Access with attributes
+print(account.gameName)  # Type: str
+print(account.tagLine)   # Type: str
+print(account.puuid)     # Type: str
+
+# IDE autocomplete and type checking work
+if account.gameName == "PlayerName":
+    print(f"PUUID: {account.puuid}")
+```
+
+The typed response uses data classes defined in the `objects` module. See client.py:192-196 for how responses are converted using `fromdict(AccountDto, raw_response)`.
+
+## Raw JSON response example
+
+With `raw_data=True`, responses are returned as dictionaries:
+
+```python
+import valaw
+
+client = valaw.Client(token="your-token", cluster="americas", raw_data=True)
+
+# Returns a Dict
+account = await client.GET_getByRiotId("PlayerName", "NA1")
+
+# Access with dictionary keys
+print(account["gameName"])  # Type: Any
+print(account["tagLine"])   # Type: Any
+print(account["puuid"])     # Type: Any
+
+# No type checking or autocomplete
+if account["gameName"] == "PlayerName":
+    print(f"PUUID: {account['puuid']}")
+```
+
+See client.py:192-193 for how raw responses are returned directly without conversion.
+
+## When to use raw data mode
+
+### Use raw data mode when:
+
+1. **You need maximum performance**: Skipping object conversion saves CPU time and memory
+2. **You're forwarding data**: If you're just passing the response to another service or API
+3. **You need the exact API structure**: When you want the response exactly as Riot sends it
+4. **You're dealing with dynamic fields**: When the response structure varies or contains unknown fields
+5. **You're debugging API responses**: To see exactly what the API returns
+
+### Use typed mode (default) when:
+
+1. **You want type safety**: Static type checking catches errors at development time
+2. **You want IDE support**: Autocomplete, documentation, and refactoring tools work better
+3. **You're building applications**: Typed objects make code more maintainable and readable
+4. **You're learning the API**: Object attributes are easier to explore than dictionary keys
+
+## Performance considerations
+
+### Typed mode overhead
+
+Typed mode has a small performance overhead due to:
+
+- JSON parsing (both modes)
+- Object creation and validation
+- Type conversion
+
+For most applications, this overhead is negligible (< 1ms per request).
+
+### Raw mode performance
+
+Raw mode is slightly faster because it:
+
+- Skips object creation
+- Skips validation
+- Returns the parsed JSON directly
+
+However, the main bottleneck is network latency, not response parsing.
+
+### Benchmark comparison
+
+```python
+import asyncio
+import time
+import valaw
+
+async def benchmark_typed():
+    client = valaw.Client(token="your-token", cluster="americas", raw_data=False)
+    
+    start = time.time()
+    for _ in range(100):
+        await client.GET_getByRiotId("PlayerName", "NA1")
+    elapsed = time.time() - start
+    
+    await client.close()
+    return elapsed
+
+async def benchmark_raw():
+    client = valaw.Client(token="your-token", cluster="americas", raw_data=True)
+    
+    start = time.time()
+    for _ in range(100):
+        await client.GET_getByRiotId("PlayerName", "NA1")
+    elapsed = time.time() - start
+    
+    await client.close()
+    return elapsed
+
+# Note: This is illustrative - actual benchmarks would need to handle rate limits
+```
+
+<Note>
+  In practice, network latency dominates performance. The difference between typed and raw mode is usually less than 1% of total request time.
+</Note>
+
+## Error handling in raw mode
+
+Error handling works the same in both modes, but you need to check for error fields manually in raw mode:
+
+```python
+import valaw
+
+# Typed mode - automatic error handling
+client_typed = valaw.Client(token="your-token", cluster="americas", raw_data=False)
+
+try:
+    account = await client_typed.GET_getByRiotId("PlayerName", "NA1")
+except valaw.Exceptions.RiotAPIResponseError as e:
+    print(f"Error: {e.status_code} - {e.status_message}")
+
+# Raw mode - automatic error handling (same as typed mode)
+client_raw = valaw.Client(token="your-token", cluster="americas", raw_data=True)
+
+try:
+    account = await client_raw.GET_getByRiotId("PlayerName", "NA1")
+except valaw.Exceptions.RiotAPIResponseError as e:
+    print(f"Error: {e.status_code} - {e.status_message}")
+```
+
+See client.py:194-195 for how errors are checked in the response regardless of `raw_data` setting.
+
+## Switching between modes
+
+You can use both modes in the same application:
+
+```python
+import valaw
+
+# Typed client for most operations
+client = valaw.Client(token="your-token", cluster="americas", raw_data=False)
+
+# Raw client for specific operations
+client_raw = valaw.Client(token="your-token", cluster="americas", raw_data=True)
+
+try:
+    # Use typed mode for working with data
+    account = await client.GET_getByRiotId("PlayerName", "NA1")
+    print(f"Found: {account.gameName}#{account.tagLine}")
+    
+    # Use raw mode for forwarding data
+    match_data = await client_raw.GET_getMatch("match-id", "na")
+    # Send match_data to another service as-is
+    
+finally:
+    await client.close()
+    await client_raw.close()
+```
+
+<Warning>
+  Remember to close both clients when using multiple instances.
+</Warning>
+
+## Working with raw responses
+
+When using raw mode, you work with standard Python dictionaries:
+
+```python
+import valaw
+import json
+
+client = valaw.Client(token="your-token", cluster="americas", raw_data=True)
+
+# Get raw match data
+match = await client.GET_getMatch("match-id", "na")
+
+# Access nested fields
+map_id = match["matchInfo"]["mapId"]
+game_mode = match["matchInfo"]["gameMode"]
+
+# Iterate over players
+for player in match["players"]:
+    print(f"{player['gameName']}#{player['tagLine']}")
+
+# Serialize to JSON
+with open("match.json", "w") as f:
+    json.dump(match, f, indent=2)
+
+await client.close()
+```
+
+## Type annotations with raw mode
+
+If you want type hints with raw mode, you can use `TypedDict`:
+
+```python
+from typing import TypedDict, List
+import valaw
+
+class AccountDict(TypedDict):
+    puuid: str
+    gameName: str
+    tagLine: str
+
+client = valaw.Client(token="your-token", cluster="americas", raw_data=True)
+
+# Type hint the response
+account: AccountDict = await client.GET_getByRiotId("PlayerName", "NA1")
+print(account["gameName"])  # Type checker knows this is a str
+
+await client.close()
+```
+
+However, using typed mode (the default) is simpler and provides better IDE support.
+
+## Complete example
+
+Here's a complete example showing both modes:
+
+```python
+import asyncio
+import json
+import valaw
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+async def typed_example():
+    """Example using typed responses."""
+    client = valaw.Client(
+        token=os.getenv("RIOT_API_TOKEN"),
+        cluster="americas",
+        raw_data=False  # Default
+    )
+    
+    try:
+        account = await client.GET_getByRiotId("PlayerName", "NA1")
+        
+        # Use object attributes
+        print(f"Account: {account.gameName}#{account.tagLine}")
+        print(f"PUUID: {account.puuid}")
+        
+    finally:
+        await client.close()
+
+async def raw_example():
+    """Example using raw JSON responses."""
+    client = valaw.Client(
+        token=os.getenv("RIOT_API_TOKEN"),
+        cluster="americas",
+        raw_data=True
+    )
+    
+    try:
+        account = await client.GET_getByRiotId("PlayerName", "NA1")
+        
+        # Use dictionary access
+        print(f"Account: {account['gameName']}#{account['tagLine']}")
+        print(f"PUUID: {account['puuid']}")
+        
+        # Save raw JSON to file
+        with open("account.json", "w") as f:
+            json.dump(account, f, indent=2)
+        
+    finally:
+        await client.close()
+
+if __name__ == "__main__":
+    print("Typed mode:")
+    asyncio.run(typed_example())
+    
+    print("\nRaw mode:")
+    asyncio.run(raw_example())
+```
+
+## Recommendation
+
+For most use cases, we recommend using the default typed mode (`raw_data=False`). It provides better type safety, IDE support, and code maintainability with minimal performance overhead.
+
+Only use raw mode when you have a specific reason, such as needing to forward responses directly or when debugging API responses.

@@ -1,0 +1,359 @@
+---
+title: "Console support"
+description: "Access VALORANT console data for PlayStation and Xbox platforms"
+---
+
+This example demonstrates how to use Valaw's console-specific endpoints to retrieve match data, leaderboards, and player information for PlayStation and Xbox platforms.
+
+## Overview
+
+VALORANT console editions (PlayStation and Xbox) have separate API endpoints. The console endpoints mirror the PC endpoints but require a `platformType` parameter to specify the platform.
+
+## Console-specific endpoints
+
+Valaw provides three main console endpoints:
+
+- `GET_getConsoleMatch` - Get detailed match data
+- `GET_getConsoleMatchlist` - Get player's match history
+- `GET_getConsoleLeaderboard` - Get competitive leaderboard
+- `GET_getConsoleRecent` - Get recent matches by queue
+
+## Platform types
+
+Valid platform types are defined in the client:
+
+```python
+PLATFORM_TYPES = {"playstation", "xbox"}
+```
+
+## Complete example
+
+```python
+import asyncio
+from valaw import Client
+
+async def get_console_player_data():
+    # Initialize the client
+    client = Client(token="YOUR_RIOT_API_KEY", cluster="americas")
+    
+    try:
+        # Step 1: Get account by Riot ID (same as PC)
+        account = await client.GET_getByRiotId(
+            gameName="ConsolePlayer",
+            tagLine="PS"
+        )
+        print(f"Found player: {account.gameName}#{account.tagLine}")
+        print(f"PUUID: {account.puuid}")
+        
+        # Step 2: Get console match history
+        # Important: Specify platformType
+        matchlist = await client.GET_getConsoleMatchlist(
+            puuid=account.puuid,
+            region="na",
+            platformType="playstation"  # or "xbox"
+        )
+        
+        print(f"\nFound {len(matchlist.history)} PlayStation matches")
+        
+        # Step 3: Get detailed match data for recent matches
+        for i, match_entry in enumerate(matchlist.history[:3]):
+            print(f"\n--- Match {i + 1} ---")
+            print(f"Match ID: {match_entry.matchId}")
+            print(f"Queue: {match_entry.queueId}")
+            
+            # Fetch detailed match information
+            match = await client.GET_getConsoleMatch(
+                matchId=match_entry.matchId,
+                region="na"
+            )
+            
+            print(f"Map: {match.matchInfo.mapId}")
+            print(f"Game mode: {match.matchInfo.gameMode}")
+            print(f"Duration: {match.matchInfo.gameLengthMillis // 1000 // 60} minutes")
+            
+            # Find player's stats
+            player_data = next(
+                (p for p in match.players if p.puuid == account.puuid),
+                None
+            )
+            
+            if player_data and player_data.stats:
+                print(f"\nPlayer performance:")
+                print(f"  Agent: {player_data.characterId}")
+                print(f"  K/D/A: {player_data.stats.kills}/{player_data.stats.deaths}/{player_data.stats.assists}")
+                print(f"  Score: {player_data.stats.score}")
+    
+    finally:
+        await client.close()
+
+# Run the async function
+asyncio.run(get_console_player_data())
+```
+
+## Console leaderboard
+
+Access the competitive leaderboard for console platforms:
+
+```python
+import asyncio
+from valaw import Client
+
+async def get_console_leaderboard():
+    client = Client(token="YOUR_RIOT_API_KEY", cluster="americas")
+    
+    try:
+        # Get PlayStation leaderboard
+        ps_leaderboard = await client.GET_getConsoleLeaderboard(
+            actId="3f61c772-4560-cd3f-5d3f-a7ab5abda6b3",
+            region="na",
+            platformType="playstation",
+            size=10,
+            startIndex=0
+        )
+        
+        print("PlayStation Top 10:")
+        print("-" * 60)
+        for player in ps_leaderboard.players:
+            display_name = f"{player.gameName}#{player.tagLine}" if player.gameName != "Private" else "Private"
+            print(f"#{player.leaderboardRank}: {display_name}")
+            print(f"  Rating: {player.rankedRating} RR, Wins: {player.numberOfWins}")
+        
+        print("\n" + "="*60 + "\n")
+        
+        # Get Xbox leaderboard
+        xbox_leaderboard = await client.GET_getConsoleLeaderboard(
+            actId="3f61c772-4560-cd3f-5d3f-a7ab5abda6b3",
+            region="na",
+            platformType="xbox",
+            size=10,
+            startIndex=0
+        )
+        
+        print("Xbox Top 10:")
+        print("-" * 60)
+        for player in xbox_leaderboard.players:
+            display_name = f"{player.gameName}#{player.tagLine}" if player.gameName != "Private" else "Private"
+            print(f"#{player.leaderboardRank}: {display_name}")
+            print(f"  Rating: {player.rankedRating} RR, Wins: {player.numberOfWins}")
+    
+    finally:
+        await client.close()
+
+asyncio.run(get_console_leaderboard())
+```
+
+## Console queue types
+
+Console VALORANT has different queue identifiers:
+
+```python
+CONSOLE_QUEUES = {
+    "console_unrated",
+    "console_swiftplay",
+    "console_hurm",
+    "console_competitive",
+    "console_deathmatch"
+}
+```
+
+## Recent console matches
+
+Get recently completed matches for a specific console queue:
+
+```python
+import asyncio
+from valaw import Client
+
+async def get_recent_console_matches():
+    client = Client(token="YOUR_RIOT_API_KEY", cluster="americas")
+    
+    try:
+        # Get recent competitive matches
+        recent = await client.GET_getConsoleRecent(
+            queue="console_competitive",
+            region="na"
+        )
+        
+        print(f"Recent Console Competitive Matches:")
+        print(f"Current time: {recent.currentTime}")
+        print(f"Found {len(recent.matchIds)} recent match IDs\n")
+        
+        # Fetch details for the first few matches
+        for match_id in recent.matchIds[:5]:
+            match = await client.GET_getConsoleMatch(
+                matchId=match_id,
+                region="na"
+            )
+            
+            print(f"Match {match_id}:")
+            print(f"  Map: {match.matchInfo.mapId}")
+            print(f"  Mode: {match.matchInfo.gameMode}")
+            print(f"  Players: {len(match.players)}")
+            print()
+    
+    finally:
+        await client.close()
+
+asyncio.run(get_recent_console_matches())
+```
+
+## Method signatures
+
+### GET_getConsoleMatchlist
+
+```python
+async def GET_getConsoleMatchlist(
+    puuid: str,          # Player's PUUID
+    region: str,         # Region (na, eu, ap, kr, etc.)
+    platformType: str    # Platform: "playstation" or "xbox"
+) -> Union[MatchlistDto, Dict]
+```
+
+### GET_getConsoleMatch
+
+```python
+async def GET_getConsoleMatch(
+    matchId: str,    # Match ID
+    region: str      # Region (na, eu, ap, kr, etc.)
+) -> Union[MatchDto, Dict]
+```
+
+### GET_getConsoleLeaderboard
+
+```python
+async def GET_getConsoleLeaderboard(
+    actId: str,           # Act ID
+    region: str,          # Region (na, eu, ap, kr, etc.)
+    platformType: str,    # Platform: "playstation" or "xbox"
+    size: int = 200,      # Number of entries (1-200)
+    startIndex: int = 0   # Starting index for pagination
+) -> Union[LeaderboardDto, Dict]
+```
+
+### GET_getConsoleRecent
+
+```python
+async def GET_getConsoleRecent(
+    queue: str,     # Console queue type (console_competitive, etc.)
+    region: str     # Region (na, eu, ap, kr, etc.)
+) -> Union[RecentMatchesDto, Dict]
+```
+
+## Cross-platform comparison
+
+```python
+import asyncio
+from valaw import Client
+
+async def compare_platforms():
+    """Compare match counts across PC and console platforms"""
+    client = Client(token="YOUR_RIOT_API_KEY", cluster="americas")
+    
+    try:
+        account = await client.GET_getByRiotId(
+            gameName="Player",
+            tagLine="TAG"
+        )
+        
+        # Get PC matches
+        pc_matches = await client.GET_getMatchlist(
+            puuid=account.puuid,
+            region="na"
+        )
+        
+        # Get console matches
+        ps_matches = await client.GET_getConsoleMatchlist(
+            puuid=account.puuid,
+            region="na",
+            platformType="playstation"
+        )
+        
+        xbox_matches = await client.GET_getConsoleMatchlist(
+            puuid=account.puuid,
+            region="na",
+            platformType="xbox"
+        )
+        
+        print(f"Match counts for {account.gameName}#{account.tagLine}:")
+        print(f"  PC: {len(pc_matches.history)} matches")
+        print(f"  PlayStation: {len(ps_matches.history)} matches")
+        print(f"  Xbox: {len(xbox_matches.history)} matches")
+        print(f"  Total: {len(pc_matches.history) + len(ps_matches.history) + len(xbox_matches.history)} matches")
+    
+    finally:
+        await client.close()
+
+asyncio.run(compare_platforms())
+```
+
+## Error handling
+
+<Warning>
+Console endpoints use the same error handling as PC endpoints:
+</Warning>
+
+```python
+from valaw import Exceptions
+
+try:
+    matchlist = await client.GET_getConsoleMatchlist(
+        puuid=puuid,
+        region="na",
+        platformType="playstation"
+    )
+except Exceptions.InvalidPlatformType as e:
+    print(f"Invalid platform: {e}")
+except Exceptions.InvalidRegion as e:
+    print(f"Invalid region: {e}")
+except Exceptions.RiotAPIResponseError as e:
+    print(f"API Error {e.status_code}: {e.status_message}")
+```
+
+<Info>
+The `platformType` parameter is validated against `PLATFORM_TYPES`. Only "playstation" and "xbox" are accepted (case-insensitive).
+</Info>
+
+## Filtering console matches by queue
+
+```python
+async def get_console_competitive_stats(client, account):
+    """Get stats for console competitive matches only"""
+    matchlist = await client.GET_getConsoleMatchlist(
+        puuid=account.puuid,
+        region="na",
+        platformType="playstation"
+    )
+    
+    # Filter for competitive matches
+    competitive_matches = [
+        m for m in matchlist.history 
+        if m.queueId == "console_competitive"
+    ]
+    
+    print(f"Found {len(competitive_matches)} console competitive matches")
+    
+    for match_entry in competitive_matches[:5]:
+        match = await client.GET_getConsoleMatch(
+            matchId=match_entry.matchId,
+            region="na"
+        )
+        # Process match data...
+```
+
+## Response structure
+
+Console endpoints return the same data structures as PC endpoints:
+
+- `MatchlistDto` - List of match IDs with timestamps and queue info
+- `MatchDto` - Complete match details including all players and rounds
+- `LeaderboardDto` - Ranked leaderboard with player rankings
+- `RecentMatchesDto` - List of recently completed match IDs
+
+The only difference is the queue identifiers, which are prefixed with `console_` for console matches.
+
+## Related methods
+
+- `GET_getConsoleMatch` - Get console match details (client.py:407)
+- `GET_getConsoleMatchlist` - Get console match history (client.py:426)
+- `GET_getConsoleLeaderboard` - Get console leaderboard (client.py:486)
+- `GET_getConsoleRecent` - Get recent console matches (client.py:450)

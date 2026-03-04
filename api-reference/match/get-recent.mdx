@@ -1,0 +1,197 @@
+---
+title: 'Get recent matches'
+description: 'Get recently completed matches for a queue'
+---
+
+## Method signature
+
+```python
+async def GET_getRecent(
+    self,
+    queue: str,
+    region: str
+) -> Union[RecentMatchesDto, Dict]
+```
+
+Get recent matches that have completed in the last 10 minutes for live regions and 12 hours for the esports routing value.
+
+<Info>
+  NA/LATAM/BR share a match history deployment. Recent matches will return a combined list of matches from those three regions. Requests are load balanced so you may see some inconsistencies as matches are added/removed from the list.
+</Info>
+
+## Parameters
+
+<ParamField path="queue" type="string" required>
+  The queue to retrieve recent matches for. Valid queues are:
+  - `competitive` - Competitive/ranked matches
+  - `unrated` - Unrated matches
+  - `spikerush` - Spike Rush matches
+  - `tournamentmode` - Tournament matches
+  - `deathmatch` - Deathmatch matches
+  - `onefa` - Replication mode
+  - `ggteam` - Escalation mode
+  - `hurm` - Team Deathmatch
+</ParamField>
+
+<ParamField path="region" type="string" required>
+  The region to execute against. Must be one of: `ap`, `br`, `esports`, `eu`, `kr`, `latam`, `na`.
+</ParamField>
+
+## Returns
+
+<ResponseField name="RecentMatchesDto" type="object">
+  List of recently completed match IDs.
+  
+  <Expandable title="properties">
+    <ResponseField name="currentTime" type="integer" required>
+      Unix timestamp of when the data was retrieved.
+    </ResponseField>
+    
+    <ResponseField name="matchIds" type="string[]" required>
+      List of match IDs that recently completed. Use these IDs with `GET_getMatch` to retrieve full match details.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Note>
+  When `raw_data=True` is set on the client, this method returns a `Dict` instead of a `RecentMatchesDto` object.
+</Note>
+
+## Exceptions
+
+- `InvalidRegion`: If the provided region is invalid.
+- `InvalidQueue`: If the provided queue is invalid.
+- `RiotAPIResponseError`: If the API response indicates an error.
+
+## Example
+
+<CodeGroup>
+
+```python Basic usage
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(
+        token="RGAPI-your-token-here",
+        cluster="americas"
+    )
+    
+    # Get recent competitive matches
+    recent = await client.GET_getRecent(
+        queue="competitive",
+        region="na"
+    )
+    
+    print(f"Found {len(recent.matchIds)} recent competitive matches")
+    print(f"Retrieved at: {recent.currentTime}")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+```python Monitor multiple queues
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(
+        token="RGAPI-your-token-here",
+        cluster="americas"
+    )
+    
+    # Check multiple queue types
+    queues = ["competitive", "unrated", "deathmatch"]
+    
+    for queue in queues:
+        recent = await client.GET_getRecent(
+            queue=queue,
+            region="na"
+        )
+        print(f"{queue}: {len(recent.matchIds)} recent matches")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+```python Fetch match details
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(
+        token="RGAPI-your-token-here",
+        cluster="americas"
+    )
+    
+    # Get recent matches
+    recent = await client.GET_getRecent(
+        queue="competitive",
+        region="na"
+    )
+    
+    # Fetch details for the first match
+    if recent.matchIds:
+        match_id = recent.matchIds[0]
+        match = await client.GET_getMatch(
+            matchId=match_id,
+            region="na"
+        )
+        
+        print(f"Match ID: {match_id}")
+        print(f"Map: {match.matchInfo.mapId}")
+        print(f"Duration: {match.matchInfo.gameLengthMillis / 1000 / 60:.1f} min")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+```python Track new matches
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(
+        token="RGAPI-your-token-here",
+        cluster="americas"
+    )
+    
+    seen_matches = set()
+    
+    # Poll for new matches every 30 seconds
+    while True:
+        recent = await client.GET_getRecent(
+            queue="competitive",
+            region="na"
+        )
+        
+        # Check for new matches
+        new_matches = set(recent.matchIds) - seen_matches
+        if new_matches:
+            print(f"Found {len(new_matches)} new matches!")
+            seen_matches.update(new_matches)
+        
+        await asyncio.sleep(30)
+
+asyncio.run(main())
+```
+
+</CodeGroup>
+
+## Notes
+
+- Matches are returned for the last 10 minutes in live regions
+- For esports region, matches from the last 12 hours are returned
+- NA, LATAM, and BR regions share match history, so results will include matches from all three
+- Results may be inconsistent due to load balancing as matches are added/removed
+
+## Related
+
+- [RecentMatchesDto object reference](/api-reference/objects/match-objects)
+- [Get match details](/api-reference/match/get-match)
+- [Valid queues constant](/api-reference/client#constants)
+- [Error handling guide](/guides/error-handling)
+- [Rate limits guide](/guides/rate-limits)

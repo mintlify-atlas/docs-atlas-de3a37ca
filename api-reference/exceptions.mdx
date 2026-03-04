@@ -1,0 +1,426 @@
+---
+title: Exceptions
+description: Custom exceptions raised by Valaw
+---
+
+Valaw defines several custom exceptions to handle various error conditions when interacting with the Riot Games API.
+
+## Exception Classes
+
+All Valaw exceptions are accessed through the `Exceptions` class:
+
+```python
+from valaw.client import Exceptions
+```
+
+---
+
+## InvalidCluster
+
+**Type:** `ValueError`
+
+Raised when an invalid cluster is provided to the client or API methods.
+
+**Valid clusters:** `americas`, `asia`, `esports`, `europe`
+
+### When It's Raised
+
+- When initializing the `Client` with an invalid cluster
+- When calling API methods with an invalid cluster parameter
+
+### Example
+
+```python
+from valaw import Client
+from valaw.client import Exceptions
+
+try:
+    # Invalid cluster
+    client = Client(token="YOUR_API_KEY", cluster="invalid")
+except Exceptions.InvalidCluster as e:
+    print(f"Error: {e}")
+    # Output: Invalid cluster, valid clusters are: {'americas', 'asia', 'esports', 'europe'}.
+```
+
+---
+
+## InvalidRegion
+
+**Type:** `ValueError`
+
+Raised when an invalid region is provided to API methods.
+
+**Valid regions:** `ap`, `br`, `esports`, `eu`, `kr`, `latam`, `na`
+
+### When It's Raised
+
+- When calling region-specific API methods with an invalid region parameter
+- Methods like `GET_getMatch()`, `GET_getContent()`, `GET_getLeaderboard()`, etc.
+
+### Example
+
+```python
+import asyncio
+from valaw import Client
+from valaw.client import Exceptions
+
+async def main():
+    client = Client(token="YOUR_API_KEY", cluster="americas")
+    
+    try:
+        # Invalid region
+        content = await client.GET_getContent(region="invalid")
+    except Exceptions.InvalidRegion as e:
+        print(f"Error: {e}")
+        # Output: Invalid region, valid regions are: {'ap', 'br', 'esports', 'eu', 'kr', 'latam', 'na'}.
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+---
+
+## InvalidLocale
+
+**Type:** `ValueError`
+
+Raised when an invalid locale is provided to content API methods.
+
+**Valid locales:** `ar-ae`, `de-de`, `en-gb`, `en-us`, `es-es`, `es-mx`, `fr-fr`, `id-id`, `it-it`, `ja-jp`, `ko-kr`, `pl-pl`, `pt-br`, `ru-ru`, `th-th`, `tr-tr`, `vi-vn`, `zh-cn`, `zh-tw`
+
+### When It's Raised
+
+- When calling `GET_getContent()` with an invalid locale parameter
+
+### Example
+
+```python
+import asyncio
+from valaw import Client
+from valaw.client import Exceptions
+
+async def main():
+    client = Client(token="YOUR_API_KEY", cluster="americas")
+    
+    try:
+        # Invalid locale
+        content = await client.GET_getContent(region="na", locale="invalid")
+    except Exceptions.InvalidLocale as e:
+        print(f"Error: {e}")
+        # Output: Invalid locale, valid locales are: ['ar-AE', 'de-DE', ...]
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+---
+
+## InvalidQueue
+
+**Type:** `ValueError`
+
+Raised when an invalid queue type is provided to match API methods.
+
+**Valid PC queues:** `competitive`, `unrated`, `spikerush`, `tournamentmode`, `deathmatch`, `onefa`, `ggteam`, `hurm`
+
+**Valid console queues:** `console_unrated`, `console_swiftplay`, `console_hurm`, `console_competitive`, `console_deathmatch`
+
+### When It's Raised
+
+- When calling `GET_getRecent()` or `GET_getConsoleRecent()` with an invalid queue parameter
+
+### Example
+
+```python
+import asyncio
+from valaw import Client
+from valaw.client import Exceptions
+
+async def main():
+    client = Client(token="YOUR_API_KEY", cluster="americas")
+    
+    try:
+        # Invalid queue
+        recent = await client.GET_getRecent(queue="invalid", region="na")
+    except Exceptions.InvalidQueue as e:
+        print(f"Error: {e}")
+        # Output: Invalid queue, valid queues are: {'competitive', 'unrated', ...}
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+---
+
+## InvalidPlatformType
+
+**Type:** `ValueError`
+
+Raised when an invalid platform type is provided to console API methods.
+
+**Valid platform types:** `playstation`, `xbox`
+
+### When It's Raised
+
+- When calling `GET_getConsoleMatchlist()` or `GET_getConsoleLeaderboard()` with an invalid platform type
+
+### Example
+
+```python
+import asyncio
+from valaw import Client
+from valaw.client import Exceptions
+
+async def main():
+    client = Client(token="YOUR_API_KEY", cluster="americas")
+    
+    try:
+        # Invalid platform type
+        matchlist = await client.GET_getConsoleMatchlist(
+            puuid="player-puuid",
+            region="na",
+            platformType="invalid"
+        )
+    except Exceptions.InvalidPlatformType as e:
+        print(f"Error: {e}")
+        # Output: Invalid platform type, valid platforms are: {'playstation', 'xbox'}.
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+---
+
+## InvalidRiotAPIKey
+
+**Type:** `ValueError`
+
+Raised when an invalid or missing Riot API key is provided.
+
+### When It's Raised
+
+- When initializing the `Client` with `None` or an empty string as the token
+
+### Example
+
+```python
+from valaw import Client
+from valaw.client import Exceptions
+
+try:
+    # Missing API key
+    client = Client(token="", cluster="americas")
+except Exceptions.InvalidRiotAPIKey as e:
+    print(f"Error: {e}")
+    # Output: A Riot API key is required.
+```
+
+---
+
+## RiotAPIResponseError
+
+**Type:** `Exception`
+
+Raised when the Riot API returns an error response.
+
+### Attributes
+
+<ResponseField name="status_code" type="int">
+  The HTTP status code returned by the API
+</ResponseField>
+
+<ResponseField name="status_message" type="str">
+  The error message returned by the API
+</ResponseField>
+
+<ResponseField name="message" type="str">
+  Formatted error message: `"{status_code} - {status_message}"`
+</ResponseField>
+
+### Common Status Codes
+
+| Status Code | Description |
+|-------------|-------------|
+| 400 | Bad Request - Invalid request parameters |
+| 401 | Unauthorized - Invalid API key |
+| 403 | Forbidden - API key lacks required permissions |
+| 404 | Not Found - Resource does not exist |
+| 429 | Rate Limited - Too many requests |
+| 500 | Internal Server Error - Riot API issue |
+| 503 | Service Unavailable - Riot API temporarily down |
+
+### When It's Raised
+
+- When the Riot API returns an error status code
+- When a requested resource doesn't exist
+- When rate limits are exceeded
+- When the API key is invalid or expired
+
+### Example
+
+```python
+import asyncio
+from valaw import Client
+from valaw.client import Exceptions
+
+async def main():
+    client = Client(token="YOUR_API_KEY", cluster="americas")
+    
+    try:
+        # Try to get a non-existent match
+        match = await client.GET_getMatch(matchId="invalid-id", region="na")
+    except Exceptions.RiotAPIResponseError as e:
+        print(f"API Error: {e.message}")
+        print(f"Status Code: {e.status_code}")
+        print(f"Message: {e.status_message}")
+        
+        # Handle specific error codes
+        if e.status_code == 404:
+            print("Match not found")
+        elif e.status_code == 429:
+            print("Rate limited - try again later")
+        elif e.status_code == 401:
+            print("Invalid API key")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+### Reference
+
+For more information about Riot API response codes, see:
+https://developer.riotgames.com/docs/portal#web-apis_response-codes
+
+---
+
+## FailedToParseJSON
+
+**Type:** `Exception`
+
+Raised when the API response cannot be parsed as JSON.
+
+### When It's Raised
+
+- When the API returns a response with an unexpected content type
+- When the response body is not valid JSON
+
+### Example
+
+```python
+import asyncio
+from valaw import Client
+from valaw.client import Exceptions
+
+async def main():
+    client = Client(token="YOUR_API_KEY", cluster="americas")
+    
+    try:
+        # API call that returns unexpected content type
+        result = await client.GET_getMatch(matchId="match-id", region="na")
+    except Exceptions.FailedToParseJSON as e:
+        print(f"JSON Parse Error: {e}")
+        # Output: Failed to parse JSON, content-type: text/html
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+---
+
+## Complete Error Handling Example
+
+```python
+import asyncio
+from valaw import Client
+from valaw.client import Exceptions
+
+async def get_player_stats(puuid: str):
+    """Get player stats with comprehensive error handling."""
+    client = None
+    
+    try:
+        # Initialize client
+        client = Client(token="YOUR_API_KEY", cluster="americas")
+        
+        # Get account info
+        account = await client.GET_getByPuuid(puuid)
+        print(f"Found player: {account.gameName}#{account.tagLine}")
+        
+        # Get match history
+        matchlist = await client.GET_getMatchlist(puuid=puuid, region="na")
+        print(f"Found {len(matchlist.history)} matches")
+        
+        # Get latest match details
+        if matchlist.history:
+            latest_match_id = matchlist.history[0].matchId
+            match = await client.GET_getMatch(matchId=latest_match_id, region="na")
+            print(f"Latest match on {match.matchInfo.mapId}")
+        
+    except Exceptions.InvalidCluster as e:
+        print(f"Invalid cluster: {e}")
+    except Exceptions.InvalidRegion as e:
+        print(f"Invalid region: {e}")
+    except Exceptions.InvalidRiotAPIKey as e:
+        print(f"API key error: {e}")
+    except Exceptions.RiotAPIResponseError as e:
+        if e.status_code == 404:
+            print(f"Player or match not found")
+        elif e.status_code == 429:
+            print(f"Rate limited. Please wait before retrying.")
+        elif e.status_code == 401:
+            print(f"Invalid API key. Please check your credentials.")
+        else:
+            print(f"API error {e.status_code}: {e.status_message}")
+    except Exceptions.FailedToParseJSON as e:
+        print(f"Failed to parse response: {e}")
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+    finally:
+        if client:
+            await client.close()
+
+# Usage
+asyncio.run(get_player_stats("player-puuid-here"))
+```
+
+---
+
+## Best Practices
+
+1. **Always handle RiotAPIResponseError** - This is the most common exception you'll encounter
+
+2. **Check specific status codes** - Handle rate limiting (429) and authentication errors (401) appropriately
+
+3. **Use try-finally for client cleanup** - Always close the client session, even if errors occur
+
+4. **Validate input before API calls** - Use the validation functions to catch errors early:
+   ```python
+   from valaw.client import validate_region, validate_cluster
+   
+   # Validate before making API calls
+   validate_region("na")  # Raises InvalidRegion if invalid
+   validate_cluster("americas")  # Raises InvalidCluster if invalid
+   ```
+
+5. **Implement retry logic for rate limits** - When you receive a 429 error, implement exponential backoff:
+   ```python
+   import asyncio
+   
+   async def get_with_retry(client, match_id, region, max_retries=3):
+       for attempt in range(max_retries):
+           try:
+               return await client.GET_getMatch(match_id, region)
+           except Exceptions.RiotAPIResponseError as e:
+               if e.status_code == 429 and attempt < max_retries - 1:
+                   wait_time = 2 ** attempt  # Exponential backoff
+                   print(f"Rate limited. Waiting {wait_time}s...")
+                   await asyncio.sleep(wait_time)
+               else:
+                   raise
+   ```

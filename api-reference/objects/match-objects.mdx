@@ -1,0 +1,568 @@
+---
+title: Match Objects
+description: Data objects returned by match-related API endpoints
+---
+
+## MatchDto
+
+The primary object containing all match data, including players, teams, and round results.
+
+<ResponseField name="matchInfo" type="MatchInfoDto" required>
+  General information about the match
+</ResponseField>
+
+<ResponseField name="players" type="List[PlayerDto]" required>
+  List of all players in the match
+</ResponseField>
+
+<ResponseField name="coaches" type="List[CoachDto]" required>
+  List of coaches in the match (for tournament mode)
+</ResponseField>
+
+<ResponseField name="teams" type="List[TeamDto]" required>
+  List of teams in the match (typically 2)
+</ResponseField>
+
+<ResponseField name="roundResults" type="List[RoundResultDto]" required>
+  Detailed results for each round in the match
+</ResponseField>
+
+---
+
+## MatchlistDto
+
+Contains a player's match history.
+
+<ResponseField name="puuid" type="str" required>
+  The player's unique identifier
+</ResponseField>
+
+<ResponseField name="history" type="List[MatchlistEntryDto]" required>
+  List of match history entries
+</ResponseField>
+
+---
+
+## MatchlistEntryDto
+
+A single entry in a player's match history.
+
+<ResponseField name="matchId" type="str" required>
+  The unique match identifier
+</ResponseField>
+
+<ResponseField name="gameStartTimeMillis" type="int" required>
+  Unix timestamp (milliseconds) when the match started
+</ResponseField>
+
+<ResponseField name="queueId" type="str" required>
+  The queue type (e.g., "competitive", "unrated", "deathmatch")
+</ResponseField>
+
+---
+
+## RecentMatchesDto
+
+Contains recently completed match IDs for a specific queue.
+
+<ResponseField name="currentTime" type="int" required>
+  Current Unix timestamp (milliseconds)
+</ResponseField>
+
+<ResponseField name="matchIds" type="List[str]" required>
+  List of recently completed match IDs
+</ResponseField>
+
+---
+
+## MatchInfoDto
+
+General information about a match.
+
+<ResponseField name="matchId" type="str" required>
+  The unique match identifier
+</ResponseField>
+
+<ResponseField name="mapId" type="str" required>
+  The map identifier
+</ResponseField>
+
+<ResponseField name="gameLengthMillis" type="int" required>
+  Total match duration in milliseconds
+</ResponseField>
+
+<ResponseField name="gameStartMillis" type="int" required>
+  Unix timestamp (milliseconds) when the match started
+</ResponseField>
+
+<ResponseField name="provisioningFlowId" type="str" required>
+  The provisioning flow identifier
+</ResponseField>
+
+<ResponseField name="isCompleted" type="bool" required>
+  Whether the match has completed
+</ResponseField>
+
+<ResponseField name="customGameName" type="str" required>
+  Name of the custom game (empty string if not a custom game)
+</ResponseField>
+
+<ResponseField name="queueId" type="str" required>
+  The queue type identifier
+</ResponseField>
+
+<ResponseField name="gameMode" type="str" required>
+  The game mode
+</ResponseField>
+
+<ResponseField name="isRanked" type="bool" required>
+  Whether the match is a ranked/competitive match
+</ResponseField>
+
+<ResponseField name="seasonId" type="str" required>
+  The season identifier when the match was played
+</ResponseField>
+
+---
+
+## PlayerDto
+
+Contains detailed information about a player in a match.
+
+<ResponseField name="puuid" type="str" required>
+  The player's unique identifier
+</ResponseField>
+
+<ResponseField name="gameName" type="str" required>
+  The player's in-game name
+</ResponseField>
+
+<ResponseField name="tagLine" type="str" required>
+  The player's tag line
+</ResponseField>
+
+<ResponseField name="teamId" type="str" required>
+  The team identifier ("Red" or "Blue")
+</ResponseField>
+
+<ResponseField name="partyId" type="str" required>
+  The party identifier (players in the same party share this ID)
+</ResponseField>
+
+<ResponseField name="characterId" type="str" required>
+  The agent/character identifier the player used
+</ResponseField>
+
+<ResponseField name="stats" type="PlayerStatsDto | None">
+  The player's overall match statistics
+</ResponseField>
+
+<ResponseField name="competitiveTier" type="int" required>
+  The player's competitive rank tier
+</ResponseField>
+
+<ResponseField name="isObserver" type="bool" required>
+  Whether the player was an observer
+</ResponseField>
+
+<ResponseField name="playerCard" type="str" required>
+  The player card identifier
+</ResponseField>
+
+<ResponseField name="playerTitle" type="str" required>
+  The player title identifier
+</ResponseField>
+
+<ResponseField name="accountLevel" type="int" required>
+  The player's account level
+</ResponseField>
+
+---
+
+## PlayerStatsDto
+
+Overall statistics for a player in a match.
+
+<ResponseField name="score" type="int" required>
+  The player's total score
+</ResponseField>
+
+<ResponseField name="roundsPlayed" type="int" required>
+  Number of rounds the player participated in
+</ResponseField>
+
+<ResponseField name="kills" type="int" required>
+  Total kills
+</ResponseField>
+
+<ResponseField name="deaths" type="int" required>
+  Total deaths
+</ResponseField>
+
+<ResponseField name="assists" type="int" required>
+  Total assists
+</ResponseField>
+
+<ResponseField name="playtimeMillis" type="int" required>
+  Total playtime in milliseconds
+</ResponseField>
+
+<ResponseField name="abilityCasts" type="AbilityCastsDto | None">
+  Ability usage statistics
+</ResponseField>
+
+---
+
+## TeamDto
+
+Information about a team in a match.
+
+<ResponseField name="teamId" type="str" required>
+  The team identifier ("Red" or "Blue")
+</ResponseField>
+
+<ResponseField name="won" type="bool" required>
+  Whether the team won the match
+</ResponseField>
+
+<ResponseField name="roundsPlayed" type="int" required>
+  Number of rounds played
+</ResponseField>
+
+<ResponseField name="roundsWon" type="int" required>
+  Number of rounds won by the team
+</ResponseField>
+
+<ResponseField name="numPoints" type="int" required>
+  Total points scored by the team
+</ResponseField>
+
+---
+
+## CoachDto
+
+Information about a coach in a tournament match.
+
+<ResponseField name="puuid" type="str" required>
+  The coach's unique identifier
+</ResponseField>
+
+<ResponseField name="teamId" type="str" required>
+  The team the coach belongs to
+</ResponseField>
+
+---
+
+## RoundResultDto
+
+Detailed information about a single round in a match.
+
+<ResponseField name="roundNum" type="int" required>
+  The round number (0-indexed)
+</ResponseField>
+
+<ResponseField name="roundResult" type="str" required>
+  The result type (e.g., "Eliminated", "Detonate")
+</ResponseField>
+
+<ResponseField name="roundCeremony" type="str" required>
+  The ceremony type for the round
+</ResponseField>
+
+<ResponseField name="winningTeam" type="str" required>
+  The team that won the round ("Red" or "Blue")
+</ResponseField>
+
+<ResponseField name="bombPlanter" type="str | None">
+  PUUID of the player who planted the spike
+</ResponseField>
+
+<ResponseField name="bombDefuser" type="str | None">
+  PUUID of the player who defused the spike
+</ResponseField>
+
+<ResponseField name="plantRoundTime" type="int | None">
+  Time when spike was planted (milliseconds into round)
+</ResponseField>
+
+<ResponseField name="plantPlayerLocations" type="List[PlayerLocationsDto] | None">
+  Player locations at the time of plant
+</ResponseField>
+
+<ResponseField name="plantLocation" type="LocationDto | None">
+  Map coordinates where spike was planted
+</ResponseField>
+
+<ResponseField name="plantSite" type="str | None">
+  The site where spike was planted ("A", "B", or "C")
+</ResponseField>
+
+<ResponseField name="defuseRoundTime" type="int | None">
+  Time when spike was defused (milliseconds into round)
+</ResponseField>
+
+<ResponseField name="defusePlayerLocations" type="List[PlayerLocationsDto] | None">
+  Player locations at the time of defuse
+</ResponseField>
+
+<ResponseField name="defuseLocation" type="LocationDto | None">
+  Map coordinates where spike was defused
+</ResponseField>
+
+<ResponseField name="playerStats" type="List[PlayerRoundStatsDto]" required>
+  Statistics for each player in this round
+</ResponseField>
+
+<ResponseField name="roundResultCode" type="str" required>
+  The round result code
+</ResponseField>
+
+---
+
+## PlayerRoundStatsDto
+
+Detailed statistics for a player in a specific round.
+
+<ResponseField name="puuid" type="str" required>
+  The player's unique identifier
+</ResponseField>
+
+<ResponseField name="kills" type="List[KillDto]" required>
+  All kills by this player in the round
+</ResponseField>
+
+<ResponseField name="damage" type="List[DamageDto]" required>
+  Damage dealt to each opponent
+</ResponseField>
+
+<ResponseField name="score" type="int" required>
+  Score earned in this round
+</ResponseField>
+
+<ResponseField name="economy" type="EconomyDto" required>
+  Economic information for the round
+</ResponseField>
+
+<ResponseField name="ability" type="AbilityDto" required>
+  Ability usage in the round
+</ResponseField>
+
+---
+
+## AbilityCastsDto
+
+Count of ability casts throughout a match.
+
+<ResponseField name="grenadeCasts" type="int" required>
+  Number of grenade/C ability casts
+</ResponseField>
+
+<ResponseField name="ability1Casts" type="int" required>
+  Number of first ability (Q) casts
+</ResponseField>
+
+<ResponseField name="ability2Casts" type="int" required>
+  Number of second ability (E) casts
+</ResponseField>
+
+<ResponseField name="ultimateCasts" type="int" required>
+  Number of ultimate (X) casts
+</ResponseField>
+
+---
+
+## AbilityDto
+
+Ability effects and kills in a round.
+
+<ResponseField name="grenadeEffects" type="str" required>
+  String representation of grenade/C ability effects
+</ResponseField>
+
+<ResponseField name="ability1Effects" type="str" required>
+  String representation of first ability (Q) effects
+</ResponseField>
+
+<ResponseField name="ability2Effects" type="str" required>
+  String representation of second ability (E) effects
+</ResponseField>
+
+<ResponseField name="ultimateEffects" type="str" required>
+  String representation of ultimate (X) effects
+</ResponseField>
+
+---
+
+## EconomyDto
+
+Economic information for a player in a round.
+
+<ResponseField name="loadoutValue" type="int" required>
+  Total value of the player's loadout
+</ResponseField>
+
+<ResponseField name="weapon" type="str" required>
+  The weapon identifier
+</ResponseField>
+
+<ResponseField name="armor" type="str" required>
+  The armor identifier
+</ResponseField>
+
+<ResponseField name="remaining" type="int" required>
+  Credits remaining after purchases
+</ResponseField>
+
+<ResponseField name="spent" type="int" required>
+  Credits spent in the round
+</ResponseField>
+
+---
+
+## KillDto
+
+Detailed information about a kill event.
+
+<ResponseField name="timeSinceGameStartMillis" type="int" required>
+  Time since match start (milliseconds)
+</ResponseField>
+
+<ResponseField name="timeSinceRoundStartMillis" type="int" required>
+  Time since round start (milliseconds)
+</ResponseField>
+
+<ResponseField name="killer" type="str" required>
+  PUUID of the killer
+</ResponseField>
+
+<ResponseField name="victim" type="str" required>
+  PUUID of the victim
+</ResponseField>
+
+<ResponseField name="victimLocation" type="LocationDto" required>
+  Map coordinates where the victim was killed
+</ResponseField>
+
+<ResponseField name="assistants" type="List[str] | None">
+  List of PUUIDs who assisted in the kill
+</ResponseField>
+
+<ResponseField name="playerLocations" type="List[PlayerLocationsDto]" required>
+  Locations of all players at the time of the kill
+</ResponseField>
+
+<ResponseField name="finishingDamage" type="FinishingDamageDto" required>
+  Information about the damage that secured the kill
+</ResponseField>
+
+---
+
+## DamageDto
+
+Damage dealt to a specific player.
+
+<ResponseField name="receiver" type="str" required>
+  PUUID of the player receiving damage
+</ResponseField>
+
+<ResponseField name="damage" type="int" required>
+  Total damage dealt
+</ResponseField>
+
+<ResponseField name="legshots" type="int" required>
+  Number of leg shots
+</ResponseField>
+
+<ResponseField name="bodyshots" type="int" required>
+  Number of body shots
+</ResponseField>
+
+<ResponseField name="headshots" type="int" required>
+  Number of head shots
+</ResponseField>
+
+---
+
+## FinishingDamageDto
+
+Information about the final damage that killed a player.
+
+<ResponseField name="damageType" type="str" required>
+  The type of damage (e.g., "Weapon", "Ability", "Bomb")
+</ResponseField>
+
+<ResponseField name="damageItem" type="str" required>
+  The item or ability that dealt the damage
+</ResponseField>
+
+<ResponseField name="isSecondaryFireMode" type="bool" required>
+  Whether the weapon was in secondary fire mode (e.g., right-click)
+</ResponseField>
+
+---
+
+## LocationDto
+
+Represents a 2D coordinate on the map.
+
+<ResponseField name="x" type="int" required>
+  X coordinate
+</ResponseField>
+
+<ResponseField name="y" type="int" required>
+  Y coordinate
+</ResponseField>
+
+---
+
+## PlayerLocationsDto
+
+A player's position and view direction at a specific moment.
+
+<ResponseField name="puuid" type="str" required>
+  The player's unique identifier
+</ResponseField>
+
+<ResponseField name="viewRadians" type="float" required>
+  The direction the player is facing (in radians)
+</ResponseField>
+
+<ResponseField name="location" type="LocationDto" required>
+  The player's map coordinates
+</ResponseField>
+
+---
+
+## Example Usage
+
+```python
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(token="YOUR_API_KEY", cluster="americas")
+    
+    # Get a match
+    match = await client.GET_getMatch("match-id", "na")
+    
+    # Access match information
+    print(f"Map: {match.matchInfo.mapId}")
+    print(f"Ranked: {match.matchInfo.isRanked}")
+    print(f"Duration: {match.matchInfo.gameLengthMillis / 1000 / 60:.1f} minutes")
+    
+    # Iterate through players
+    for player in match.players:
+        if player.stats:
+            kda = f"{player.stats.kills}/{player.stats.deaths}/{player.stats.assists}"
+            print(f"{player.gameName}#{player.tagLine}: {kda}")
+    
+    # Check round results
+    for round_result in match.roundResults:
+        print(f"Round {round_result.roundNum + 1}: {round_result.winningTeam} won")
+        if round_result.bombPlanter:
+            print(f"  Spike planted by {round_result.bombPlanter}")
+    
+    await client.close()
+
+asyncio.run(main())
+```

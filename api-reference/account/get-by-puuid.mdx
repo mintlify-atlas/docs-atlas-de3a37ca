@@ -1,0 +1,125 @@
+---
+title: "Get Account by PUUID"
+description: "Retrieve account information using a player's PUUID"
+---
+
+## GET_getByPuuid
+
+```python
+await client.GET_getByPuuid(puuid: str, cluster: Optional[str] = None)
+```
+
+Get account information by PUUID (Player Universally Unique Identifier).
+
+### Parameters
+
+<ParamField path="puuid" type="str" required>
+  The PUUID of the account to retrieve.
+</ParamField>
+
+<ParamField path="cluster" type="str" optional>
+  The cluster to retrieve from. If not provided, uses the client's default cluster.
+  
+  Valid clusters:
+  - `americas`
+  - `asia`
+  - `esports`
+  - `europe`
+</ParamField>
+
+### Returns
+
+<ResponseField name="AccountDto" type="object">
+  Account information object (or raw dict if `raw_data=True`).
+  
+  <Expandable title="properties">
+    <ResponseField name="puuid" type="str">
+      The player's unique identifier.
+    </ResponseField>
+    
+    <ResponseField name="gameName" type="str | None">
+      The player's in-game name (without tag).
+    </ResponseField>
+    
+    <ResponseField name="tagLine" type="str | None">
+      The player's tagline (e.g., "NA1").
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Exceptions
+
+- `InvalidCluster` - If the provided cluster is invalid
+- `RiotAPIResponseError` - If the API response indicates an error (e.g., account not found)
+
+### Example
+
+```python
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(
+        token="RGAPI-your-api-key-here",
+        cluster="americas"
+    )
+    
+    try:
+        # Get account by PUUID
+        account = await client.GET_getByPuuid(
+            puuid="abc123-def456-ghi789-jkl012"
+        )
+        
+        print(f"PUUID: {account.puuid}")
+        print(f"Game Name: {account.gameName}")
+        print(f"Tag Line: {account.tagLine}")
+        print(f"Full ID: {account.gameName}#{account.tagLine}")
+        
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        await client.close()
+
+asyncio.run(main())
+```
+
+### Example with Different Cluster
+
+```python
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(
+        token="RGAPI-your-api-key-here",
+        cluster="americas"  # Default cluster
+    )
+    
+    try:
+        # Query from a different cluster
+        account = await client.GET_getByPuuid(
+            puuid="abc123-def456-ghi789-jkl012",
+            cluster="europe"  # Override default cluster
+        )
+        
+        print(f"Found EU account: {account.gameName}#{account.tagLine}")
+        
+    finally:
+        await client.close()
+
+asyncio.run(main())
+```
+
+### Response Example
+
+```python
+AccountDto(
+    puuid="abc123-def456-ghi789-jkl012",
+    gameName="PlayerName",
+    tagLine="NA1"
+)
+```
+
+<Note>
+  The PUUID is a persistent identifier that remains constant even if a player changes their Riot ID (gameName#tagLine).
+</Note>

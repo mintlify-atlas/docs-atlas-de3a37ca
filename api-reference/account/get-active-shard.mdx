@@ -1,0 +1,154 @@
+---
+title: "Get Active Shard"
+description: "Retrieve the active game shard for a player"
+---
+
+## GET_getActiveShard
+
+```python
+await client.GET_getActiveShard(puuid: str, cluster: Optional[str] = None)
+```
+
+Get the active shard (region) where a player is currently playing VALORANT. This is useful for determining which regional server to query for a player's match history and live game data.
+
+### Parameters
+
+<ParamField path="puuid" type="str" required>
+  The PUUID of the account.
+</ParamField>
+
+<ParamField path="cluster" type="str" optional>
+  The cluster to retrieve from. If not provided, uses the client's default cluster.
+  
+  Valid clusters:
+  - `americas`
+  - `asia`
+  - `esports`
+  - `europe`
+</ParamField>
+
+### Returns
+
+<ResponseField name="ActiveShardDto" type="object">
+  Active shard information object (or raw dict if `raw_data=True`).
+  
+  <Expandable title="properties">
+    <ResponseField name="puuid" type="str">
+      The player's unique identifier.
+    </ResponseField>
+    
+    <ResponseField name="game" type="str">
+      The game identifier (e.g., "val" for VALORANT).
+    </ResponseField>
+    
+    <ResponseField name="activeShard" type="str">
+      The active regional shard where the player is currently playing.
+      
+      Possible values:
+      - `na` - North America
+      - `latam` - Latin America
+      - `br` - Brazil
+      - `eu` - Europe
+      - `ap` - Asia Pacific
+      - `kr` - Korea
+      - `esports` - Esports
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+### Exceptions
+
+- `InvalidCluster` - If the provided cluster is invalid
+- `RiotAPIResponseError` - If the API response indicates an error (e.g., player not found)
+
+### Example
+
+```python
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(
+        token="RGAPI-your-api-key-here",
+        cluster="americas"
+    )
+    
+    try:
+        # Get account first
+        account = await client.GET_getByRiotId(
+            gameName="PlayerName",
+            tagLine="NA1"
+        )
+        
+        # Get active shard for the player
+        shard = await client.GET_getActiveShard(
+            puuid=account.puuid
+        )
+        
+        print(f"Player: {account.gameName}#{account.tagLine}")
+        print(f"Game: {shard.game}")
+        print(f"Active Shard: {shard.activeShard}")
+        
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        await client.close()
+
+asyncio.run(main())
+```
+
+### Example with Match History Query
+
+```python
+import asyncio
+from valaw import Client
+
+async def get_player_matches(client, game_name, tag_line):
+    # Step 1: Get account
+    account = await client.GET_getByRiotId(game_name, tag_line)
+    
+    # Step 2: Get active shard
+    shard_info = await client.GET_getActiveShard(account.puuid)
+    region = shard_info.activeShard
+    
+    # Step 3: Query match history from the correct region
+    matches = await client.GET_getMatchlist(
+        puuid=account.puuid,
+        region=region
+    )
+    
+    return matches
+
+async def main():
+    client = Client(
+        token="RGAPI-your-api-key-here",
+        cluster="americas"
+    )
+    
+    try:
+        matches = await get_player_matches(client, "PlayerName", "NA1")
+        print(f"Found {len(matches.history)} matches")
+        
+    finally:
+        await client.close()
+
+asyncio.run(main())
+```
+
+### Response Example
+
+```python
+ActiveShardDto(
+    puuid="abc123-def456-ghi789-jkl012",
+    game="val",
+    activeShard="na"
+)
+```
+
+<Info>
+  The active shard represents the regional server where a player is currently active. This is important because match history and other gameplay data must be queried from the correct regional endpoint.
+</Info>
+
+<Note>
+  Players can change their active shard by logging into a different region. Always query the active shard before fetching match-related data to ensure you're using the correct regional endpoint.
+</Note>

@@ -1,0 +1,208 @@
+---
+title: 'Get content'
+description: 'Get VALORANT content optionally filtered by locale'
+---
+
+## Method signature
+
+```python
+async def GET_getContent(
+    self,
+    region: str,
+    locale: Optional[str] = ""
+) -> Union[ContentDto, Dict]
+```
+
+Get content optionally filtered by locale. A locale is recommended to be used for faster response times.
+
+## Parameters
+
+<ParamField path="region" type="string" required>
+  The region to execute against. Must be one of: `ap`, `br`, `esports`, `eu`, `kr`, `latam`, `na`.
+</ParamField>
+
+<ParamField path="locale" type="string" default="">
+  The locale to retrieve data for. If not specified, all locales will be returned. Valid locales are:
+  - `ar-AE` (Arabic - UAE)
+  - `de-DE` (German)
+  - `en-GB` (English - UK)
+  - `en-US` (English - US)
+  - `es-ES` (Spanish - Spain)
+  - `es-MX` (Spanish - Mexico)
+  - `fr-FR` (French)
+  - `id-ID` (Indonesian)
+  - `it-IT` (Italian)
+  - `ja-JP` (Japanese)
+  - `ko-KR` (Korean)
+  - `pl-PL` (Polish)
+  - `pt-BR` (Portuguese - Brazil)
+  - `ru-RU` (Russian)
+  - `th-TH` (Thai)
+  - `tr-TR` (Turkish)
+  - `vi-VN` (Vietnamese)
+  - `zh-CN` (Chinese - Simplified)
+  - `zh-TW` (Chinese - Traditional)
+</ParamField>
+
+## Returns
+
+<ResponseField name="ContentDto" type="object">
+  Content data object containing game assets and metadata.
+  
+  <Expandable title="properties">
+    <ResponseField name="version" type="string">
+      Version string of the content.
+    </ResponseField>
+    
+    <ResponseField name="characters" type="ContentItemDto[]">
+      List of character assets.
+    </ResponseField>
+    
+    <ResponseField name="maps" type="ContentItemDto[]">
+      List of map assets.
+    </ResponseField>
+    
+    <ResponseField name="chromas" type="ContentItemDto[]">
+      List of chroma assets.
+    </ResponseField>
+    
+    <ResponseField name="skins" type="ContentItemDto[]">
+      List of skin assets.
+    </ResponseField>
+    
+    <ResponseField name="skinLevels" type="ContentItemDto[]">
+      List of skin level assets.
+    </ResponseField>
+    
+    <ResponseField name="equips" type="ContentItemDto[]">
+      List of equipment assets.
+    </ResponseField>
+    
+    <ResponseField name="gameModes" type="ContentItemDto[]">
+      List of game mode assets.
+    </ResponseField>
+    
+    <ResponseField name="totems" type="ContentItemDto[]">
+      List of totem assets.
+    </ResponseField>
+    
+    <ResponseField name="sprays" type="ContentItemDto[]">
+      List of spray assets.
+    </ResponseField>
+    
+    <ResponseField name="sprayLevels" type="ContentItemDto[]">
+      List of spray level assets.
+    </ResponseField>
+    
+    <ResponseField name="charms" type="ContentItemDto[]">
+      List of charm assets.
+    </ResponseField>
+    
+    <ResponseField name="charmLevels" type="ContentItemDto[]">
+      List of charm level assets.
+    </ResponseField>
+    
+    <ResponseField name="playerCards" type="ContentItemDto[]">
+      List of player card assets.
+    </ResponseField>
+    
+    <ResponseField name="playerTitles" type="ContentItemDto[]">
+      List of player title assets.
+    </ResponseField>
+    
+    <ResponseField name="acts" type="ActDto[]">
+      List of acts/episodes.
+    </ResponseField>
+    
+    <ResponseField name="ceremonies" type="ContentItemDto[]">
+      List of ceremony assets.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Note>
+  When `raw_data=True` is set on the client, this method returns a `Dict` instead of a `ContentDto` object.
+</Note>
+
+## Exceptions
+
+- `InvalidRegion`: If the provided region is invalid.
+- `InvalidLocale`: If the provided locale is invalid.
+- `RiotAPIResponseError`: If the API response indicates an error.
+
+## Example
+
+<CodeGroup>
+
+```python Basic usage
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(
+        token="RGAPI-your-token-here",
+        cluster="americas"
+    )
+    
+    # Get all content for NA region
+    content = await client.GET_getContent(region="na")
+    print(f"Content version: {content.version}")
+    print(f"Number of characters: {len(content.characters)}")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+```python With locale filter
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(
+        token="RGAPI-your-token-here",
+        cluster="americas"
+    )
+    
+    # Get content with English (US) locale
+    content = await client.GET_getContent(
+        region="na",
+        locale="en-US"
+    )
+    
+    # Display character names
+    for character in content.characters:
+        print(f"{character.name}: {character.id}")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+```python Raw data
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(
+        token="RGAPI-your-token-here",
+        cluster="americas",
+        raw_data=True
+    )
+    
+    # Get raw JSON data
+    content = await client.GET_getContent(region="eu")
+    print(content)  # Dict object
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+</CodeGroup>
+
+## Related
+
+- [ContentDto object reference](/api-reference/objects/content-objects)
+- [Error handling guide](/guides/error-handling)
+- [Valid regions constant](/api-reference/client#constants)

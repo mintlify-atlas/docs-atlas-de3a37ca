@@ -1,0 +1,82 @@
+---
+title: "Get Console Recent Matches"
+api: "GET https://{region}.api.riotgames.com/val/match/console/v1/recent-matches/by-queue/{queue}"
+description: "Get recent console matches for a specific queue"
+---
+
+## Method Signature
+
+```python
+await client.GET_getConsoleRecent(queue, region)
+```
+
+## Parameters
+
+<ParamField path="queue" type="string" required>
+  The queue to retrieve recent matches for. Valid console queues:
+  - `console_unrated` - Unrated matches
+  - `console_swiftplay` - Swift Play matches
+  - `console_hurm` - Team Deathmatch
+  - `console_competitive` - Competitive/Ranked matches
+  - `console_deathmatch` - Deathmatch
+</ParamField>
+
+<ParamField path="region" type="string" required>
+  The region to execute against. Valid regions: `ap`, `br`, `esports`, `eu`, `kr`, `latam`, `na`
+</ParamField>
+
+## Returns
+
+<ResponseField name="response" type="Union[RecentMatchesDto, Dict]">
+  Returns a `RecentMatchesDto` object containing a list of recent match IDs, or raw JSON dict if `raw_data=True`
+</ResponseField>
+
+## Exceptions
+
+- `InvalidRegion`: If the provided region is invalid
+- `InvalidQueue`: If the provided queue is not a valid console queue
+- `RiotAPIResponseError`: If the API response indicates an error
+
+## Response Details
+
+Returns a list of match IDs that have completed:
+- **Live regions**: Matches from the last 10 minutes
+- **Esports routing**: Matches from the last 12 hours
+
+<Warning>
+  NA/LATAM/BR share a match history deployment. Recent matches will return a combined list of matches from those three regions. Requests are load balanced, so you may see some inconsistencies as matches are added/removed from the list.
+</Warning>
+
+## Example
+
+```python
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(token="YOUR_API_KEY", cluster="americas")
+    
+    # Get recent competitive console matches
+    recent = await client.GET_getConsoleRecent(
+        queue="console_competitive",
+        region="na"
+    )
+    
+    # Get recent unrated console matches
+    unrated_recent = await client.GET_getConsoleRecent(
+        queue="console_unrated",
+        region="eu"
+    )
+    
+    # Process recent match IDs
+    for match_id in recent.matchIds:
+        print(f"Recent match: {match_id}")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+<Note>
+  Console queues are prefixed with `console_` to distinguish them from PC queues. For PC recent matches, use `GET_getRecent`.
+</Note>

@@ -1,0 +1,92 @@
+---
+title: "Get Console Leaderboard"
+api: "GET https://{region}.api.riotgames.com/val/console/ranked/v1/leaderboards/by-act/{actId}"
+description: "Get leaderboard for the console competitive queue"
+---
+
+## Method Signature
+
+```python
+await client.GET_getConsoleLeaderboard(actId, region, platformType, size=200, startIndex=0)
+```
+
+## Parameters
+
+<ParamField path="actId" type="string" required>
+  The act ID to retrieve the leaderboard for
+</ParamField>
+
+<ParamField path="region" type="string" required>
+  The region to execute against. Valid regions: `ap`, `br`, `esports`, `eu`, `kr`, `latam`, `na`
+</ParamField>
+
+<ParamField query="platformType" type="string" required>
+  The platform type to retrieve leaderboard for. Valid values:
+  - `playstation` - PlayStation console
+  - `xbox` - Xbox console
+</ParamField>
+
+<ParamField query="size" type="int" default="200">
+  The amount of entries to retrieve. Valid values: 1 to 200
+</ParamField>
+
+<ParamField query="startIndex" type="int" default="0">
+  The index to start from for pagination
+</ParamField>
+
+## Returns
+
+<ResponseField name="response" type="Union[LeaderboardDto, Dict]">
+  Returns a `LeaderboardDto` object containing the leaderboard data, or raw JSON dict if `raw_data=True`
+</ResponseField>
+
+## Exceptions
+
+- `InvalidRegion`: If the provided region is invalid
+- `InvalidPlatformType`: If the provided platform type is invalid (must be "playstation" or "xbox")
+- `ValueError`: If the size is not between 1 and 200
+- `RiotAPIResponseError`: If the API response indicates an error
+
+## Example
+
+```python
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(token="YOUR_API_KEY", cluster="americas")
+    
+    # Get PlayStation leaderboard for a specific act
+    ps_leaderboard = await client.GET_getConsoleLeaderboard(
+        actId="52e9749a-41ae-4c84-8c88-b2b1f9e40d8c",
+        region="na",
+        platformType="playstation",
+        size=200,
+        startIndex=0
+    )
+    
+    # Get Xbox leaderboard for the same act
+    xbox_leaderboard = await client.GET_getConsoleLeaderboard(
+        actId="52e9749a-41ae-4c84-8c88-b2b1f9e40d8c",
+        region="na",
+        platformType="xbox",
+        size=100
+    )
+    
+    # Get next page of results
+    next_page = await client.GET_getConsoleLeaderboard(
+        actId="52e9749a-41ae-4c84-8c88-b2b1f9e40d8c",
+        region="na",
+        platformType="playstation",
+        size=200,
+        startIndex=200
+    )
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+<Note>
+  Console leaderboards are separate for each platform type. PlayStation and Xbox players have distinct leaderboards. For PC leaderboards, use `GET_getLeaderboard`.
+</Note>

@@ -1,0 +1,194 @@
+---
+title: 'Get match'
+description: 'Get match details by match ID'
+---
+
+## Method signature
+
+```python
+async def GET_getMatch(
+    self,
+    matchId: str,
+    region: str
+) -> Union[MatchDto, Dict]
+```
+
+Get detailed match data by match ID.
+
+## Parameters
+
+<ParamField path="matchId" type="string" required>
+  The unique match identifier. Match IDs are typically obtained from the matchlist endpoint.
+</ParamField>
+
+<ParamField path="region" type="string" required>
+  The region to execute against. Must be one of: `ap`, `br`, `esports`, `eu`, `kr`, `latam`, `na`.
+</ParamField>
+
+## Returns
+
+<ResponseField name="MatchDto" type="object">
+  Complete match data including players, teams, rounds, and statistics.
+  
+  <Expandable title="properties">
+    <ResponseField name="matchInfo" type="MatchInfoDto" required>
+      Basic match information.
+      
+      <Expandable title="properties">
+        <ResponseField name="matchId" type="string">
+          Unique match identifier.
+        </ResponseField>
+        
+        <ResponseField name="mapId" type="string">
+          Map identifier.
+        </ResponseField>
+        
+        <ResponseField name="gameLengthMillis" type="integer">
+          Total game duration in milliseconds.
+        </ResponseField>
+        
+        <ResponseField name="gameStartMillis" type="integer">
+          Unix timestamp when the game started.
+        </ResponseField>
+        
+        <ResponseField name="isCompleted" type="boolean">
+          Whether the match has finished.
+        </ResponseField>
+        
+        <ResponseField name="queueId" type="string">
+          Queue type identifier.
+        </ResponseField>
+        
+        <ResponseField name="gameMode" type="string">
+          Game mode identifier.
+        </ResponseField>
+        
+        <ResponseField name="isRanked" type="boolean">
+          Whether the match was ranked.
+        </ResponseField>
+        
+        <ResponseField name="seasonId" type="string">
+          Season identifier.
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="players" type="PlayerDto[]" required>
+      List of all players in the match.
+    </ResponseField>
+    
+    <ResponseField name="coaches" type="CoachDto[]" required>
+      List of coaches (typically empty for non-tournament matches).
+    </ResponseField>
+    
+    <ResponseField name="teams" type="TeamDto[]" required>
+      Team data including rounds won and final scores.
+    </ResponseField>
+    
+    <ResponseField name="roundResults" type="RoundResultDto[]" required>
+      Detailed data for each round of the match.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Note>
+  When `raw_data=True` is set on the client, this method returns a `Dict` instead of a `MatchDto` object.
+</Note>
+
+## Exceptions
+
+- `InvalidRegion`: If the provided region is invalid.
+- `RiotAPIResponseError`: If the API response indicates an error (e.g., match not found).
+
+## Example
+
+<CodeGroup>
+
+```python Basic usage
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(
+        token="RGAPI-your-token-here",
+        cluster="americas"
+    )
+    
+    # Get match details
+    match_id = "d46cf32e-6419-4acc-a5e5-e5b3b7e3b0f5"
+    match = await client.GET_getMatch(
+        matchId=match_id,
+        region="na"
+    )
+    
+    print(f"Map: {match.matchInfo.mapId}")
+    print(f"Duration: {match.matchInfo.gameLengthMillis / 1000 / 60:.1f} minutes")
+    print(f"Players: {len(match.players)}")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+```python Analyze player performance
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(
+        token="RGAPI-your-token-here",
+        cluster="americas"
+    )
+    
+    match_id = "d46cf32e-6419-4acc-a5e5-e5b3b7e3b0f5"
+    match = await client.GET_getMatch(
+        matchId=match_id,
+        region="na"
+    )
+    
+    # Display player stats
+    for player in match.players:
+        if player.stats:
+            print(f"{player.gameName}#{player.tagLine}")
+            print(f"  K/D/A: {player.stats.kills}/{player.stats.deaths}/{player.stats.assists}")
+            print(f"  Score: {player.stats.score}")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+```python Get round details
+import asyncio
+from valaw import Client
+
+async def main():
+    client = Client(
+        token="RGAPI-your-token-here",
+        cluster="americas"
+    )
+    
+    match_id = "d46cf32e-6419-4acc-a5e5-e5b3b7e3b0f5"
+    match = await client.GET_getMatch(
+        matchId=match_id,
+        region="na"
+    )
+    
+    # Analyze each round
+    for round_result in match.roundResults:
+        print(f"Round {round_result.roundNum}: {round_result.winningTeam} won")
+        print(f"  Result: {round_result.roundResult}")
+    
+    await client.close()
+
+asyncio.run(main())
+```
+
+</CodeGroup>
+
+## Related
+
+- [MatchDto object reference](/api-reference/objects/match-objects)
+- [Get matchlist](/api-reference/match/get-matchlist)
+- [Get recent matches](/api-reference/match/get-recent)
+- [Error handling guide](/guides/error-handling)
